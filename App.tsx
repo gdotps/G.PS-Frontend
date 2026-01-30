@@ -17,6 +17,7 @@ import { ChatRoomView } from './components/ChatRoomView';
 import { MapView } from './components/MapView';
 import { CreatePostView } from './components/CreatePostView';
 import { ProfileView } from './components/ProfileView';
+import { NicknameSetup } from './components/NicknameSetup';
 
 export default function App() {
   const {
@@ -29,36 +30,40 @@ export default function App() {
     handleApprove, handleReject,
     handleAddComment,
     handleSendMessage, handleLeaveChat,
-    createPost
+    createPost,
+    // Nickname
+    goToNicknameSetup, handleNicknameSubmit
   } = useAppLogic();
 
   // Route/View Switcher
   const renderContent = () => {
     switch (currentView) {
       case ViewState.ONBOARDING:
-        return <Onboarding onComplete={goToHome} />;
+        return <Onboarding onComplete={goToNicknameSetup} />;
+      case ViewState.NICKNAME_SETUP:
+        return <NicknameSetup onComplete={handleNicknameSubmit} />;
       case ViewState.HOME:
         return (
-          <HomeView 
-            posts={posts} 
+          <HomeView
+            posts={posts}
             notifications={notifications}
-            onViewPost={goToPostDetail} 
+            onViewPost={goToPostDetail}
             onOpenNotifications={() => setCurrentView(ViewState.NOTIFICATIONS)}
           />
         );
       case ViewState.POST_DETAIL:
         return selectedPost ? (
-            <PostDetail 
-                post={selectedPost} 
-                isBookmarked={bookmarkedIds.includes(selectedPost.id)}
-                onToggleBookmark={() => toggleBookmark(selectedPost.id)}
-                onBack={goToHome} 
-                onJoin={handleJoin}
-                onCancelJoin={handleCancelJoin}
-                onApprove={handleApprove}
-                onReject={handleReject}
-                onAddComment={handleAddComment}
-            />
+          <PostDetail
+            post={selectedPost}
+            isBookmarked={bookmarkedIds.includes(selectedPost.id)}
+            onToggleBookmark={() => toggleBookmark(selectedPost.id)}
+            onBack={goToHome}
+            onJoin={handleJoin}
+            onCancelJoin={handleCancelJoin}
+            onApprove={handleApprove}
+            onReject={handleReject}
+            onAddComment={handleAddComment}
+          />
         ) : null;
       case ViewState.MAP:
         return <MapView posts={posts} onViewPost={goToPostDetail} />;
@@ -67,19 +72,19 @@ export default function App() {
       case ViewState.CHAT_ROOM:
         const currentChat = chats.find(c => c.id === selectedChatId);
         return currentChat ? (
-          <ChatRoomView 
-            chatRoom={currentChat} 
+          <ChatRoomView
+            chatRoom={currentChat}
             participantsInfo={currentChat.participants.map(uid => getUserInfo(uid, posts))}
-            onBack={() => setCurrentView(ViewState.CHAT_LIST)} 
+            onBack={() => setCurrentView(ViewState.CHAT_LIST)}
             onSendMessage={handleSendMessage}
             onLeave={() => handleLeaveChat(currentChat.id)}
           />
         ) : <div>Chat not found</div>;
       case ViewState.CREATE_POST:
-        return <CreatePostView onCancel={goToHome} onCreate={createPost}/>;
+        return <CreatePostView onCancel={goToHome} onCreate={createPost} />;
       case ViewState.PROFILE:
         return (
-          <ProfileView 
+          <ProfileView
             user={CURRENT_USER}
             bookmarkCount={bookmarkedIds.length}
             onViewBookmarks={() => setCurrentView(ViewState.BOOKMARKS)}
@@ -91,19 +96,19 @@ export default function App() {
       case ViewState.BOOKMARKS:
         const bookmarkedPosts = posts.filter(p => bookmarkedIds.includes(p.id));
         return (
-            <BookmarksView 
-                posts={bookmarkedPosts} 
-                onViewPost={goToPostDetail} 
-                onBack={() => setCurrentView(ViewState.PROFILE)}
-            />
+          <BookmarksView
+            posts={bookmarkedPosts}
+            onViewPost={goToPostDetail}
+            onBack={() => setCurrentView(ViewState.PROFILE)}
+          />
         );
       case ViewState.APPLICANTS:
         return (
-            <ApplicantListView 
-                posts={posts} 
-                onBack={() => setCurrentView(ViewState.PROFILE)}
-                onApprove={handleApprove}
-            />
+          <ApplicantListView
+            posts={posts}
+            onBack={() => setCurrentView(ViewState.PROFILE)}
+            onApprove={handleApprove}
+          />
         );
       default:
         return <div>Not found</div>;

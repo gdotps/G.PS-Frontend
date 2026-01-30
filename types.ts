@@ -1,5 +1,6 @@
 export enum ViewState {
   ONBOARDING = "ONBOARDING",
+  NICKNAME_SETUP = "NICKNAME_SETUP",
   HOME = "HOME",
   MAP = "MAP",
   CHAT_LIST = "CHAT_LIST",
