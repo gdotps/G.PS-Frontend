@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   ViewState,
+  User,
   Post,
   ChatRoom,
   Message,
@@ -18,6 +19,7 @@ export const useAppLogic = () => {
   const [currentView, setCurrentView] = useState<ViewState>(
     ViewState.ONBOARDING,
   );
+  const [currentUser, setCurrentUser] = useState<User>(CURRENT_USER);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [posts, setPosts] = useState<Post[]>(MOCK_POSTS);
@@ -26,9 +28,9 @@ export const useAppLogic = () => {
     useState<Notification[]>(MOCK_NOTIFICATIONS);
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
 
-  // Navigation Helpers
+  // 네비게이션 헬퍼
   const goToHome = () => setCurrentView(ViewState.HOME);
-  const goToNicknameSetup = () => setCurrentView(ViewState.NICKNAME_SETUP);
+  const goToProfileSetup = () => setCurrentView(ViewState.PROFILE_SETUP);
 
   const goToPostDetail = (post: Post) => {
     setSelectedPost(post);
@@ -38,8 +40,10 @@ export const useAppLogic = () => {
     setSelectedChatId(chatId);
     setCurrentView(ViewState.CHAT_ROOM);
   };
+  const goToProfileEdit = () => setCurrentView(ViewState.PROFILE_EDIT);
+  const goToProfile = () => setCurrentView(ViewState.PROFILE);
 
-  // Actions
+  // 액션
   const toggleBookmark = (postId: string) => {
     setBookmarkedIds((prev) =>
       prev.includes(postId)
@@ -50,13 +54,13 @@ export const useAppLogic = () => {
 
   const handleJoin = () => {
     if (!selectedPost) return;
-    if (selectedPost.applicants?.some((a) => a.id === CURRENT_USER.id)) {
+    if (selectedPost.applicants?.some((a) => a.id === currentUser.id)) {
       alert("이미 지원했습니다.");
       return;
     }
     const updatedPost = {
       ...selectedPost,
-      applicants: [...(selectedPost.applicants || []), CURRENT_USER],
+      applicants: [...(selectedPost.applicants || []), currentUser],
     };
     setPosts(posts.map((p) => (p.id === selectedPost.id ? updatedPost : p)));
     setSelectedPost(updatedPost);
@@ -69,7 +73,7 @@ export const useAppLogic = () => {
       const updatedPost = {
         ...selectedPost,
         applicants:
-          selectedPost.applicants?.filter((a) => a.id !== CURRENT_USER.id) ||
+          selectedPost.applicants?.filter((a) => a.id !== currentUser.id) ||
           [],
       };
       setPosts(posts.map((p) => (p.id === selectedPost.id ? updatedPost : p)));
@@ -121,9 +125,9 @@ export const useAppLogic = () => {
     if (!selectedPost) return;
     const newComment: Comment = {
       id: Date.now().toString(),
-      authorId: CURRENT_USER.id,
-      authorName: CURRENT_USER.name,
-      authorAvatar: CURRENT_USER.avatarUrl,
+      authorId: currentUser.id,
+      authorName: currentUser.name,
+      authorAvatar: currentUser.avatarUrl,
       text: text,
       timestamp: Date.now(),
     };
@@ -139,7 +143,7 @@ export const useAppLogic = () => {
     if (!selectedChatId) return;
     const newMessage: Message = {
       id: Date.now().toString(),
-      senderId: CURRENT_USER.id,
+      senderId: currentUser.id,
       text: text,
       timestamp: Date.now(),
     };
@@ -165,34 +169,59 @@ export const useAppLogic = () => {
     setSelectedChatId(null);
   };
 
-  const handleNicknameSubmit = (nickname: string) => {
-    // Note: In a real app, this would be an API call to update the user profile.
-    // Here we just update the local constant-like object for simulation, 
-    // but in a real React app with global state (Context/Redux), we'd dispatch an action.
-    // Since CURRENT_USER is imported from constants, we can't "set" it via state here efficiently 
-    // without a proper user provider. For this prototype, we'll assume the mutation happens 
-    // or we'd need a local user state.
-    // Let's create a local user state if we were fully rigorous, but for the prototype's scope:
-    // We will just proceed to HOME.
-    // *Correction for "Functionality"*: We should ideally have a setUser state.
-    // However, refactoring the whole app to use a UserProvider involves many files.
-    // We will simulate it by just transitioning to HOME as requested.
+  const handleProfileSetupSubmit = (data: {
+    nickname: string;
+    avatarUrl: string;
+    introduction: string;
+  }) => {
+    // 참고: 실제 앱에서는 사용자 프로필 업데이트 API 호출이 필요합니다.
+    // 여기서는 프로토타입 시뮬레이션을 위해 로컬 상태만 업데이트합니다.
+    // 전역 상태 관리(Context/Redux)가 있다면 액션을 디스패치해야 합니다.
+    console.log(`프로필 설정 완료: ${data.nickname}`);
 
-    // For visual confirmation, let's alert (or we could update a local state if we added it).
-    console.log(`Nickname updated to: ${nickname}`);
+    // 프로필 정보 업데이트 (User 상태 업데이트)
+    setCurrentUser((prev) => ({
+      ...prev,
+      name: data.nickname,
+      avatarUrl: data.avatarUrl,
+      introduction: data.introduction,
+    }));
     setCurrentView(ViewState.HOME);
   };
 
+  const handleProfileUpdate = (updatedUser: User) => {
+    setCurrentUser(updatedUser);
+    setCurrentView(ViewState.PROFILE);
+  };
+
+  const handleLogout = () => {
+    if (window.confirm("로그아웃 하시겠습니까?")) {
+      // 실제 앱: 토큰 삭제, 유저 상태 초기화 등
+      // 프로토타입: 온보딩으로 이동 및 초기화 시뮬레이션
+      setCurrentView(ViewState.ONBOARDING);
+    }
+  };
+
+  const handleDeleteAccount = () => {
+    if (window.confirm("정말로 탈퇴하시겠습니까? 모든 데이터가 삭제됩니다.")) {
+      // 탈퇴 로직 (API 호출 등)
+      alert("회원 탈퇴가 완료되었습니다.");
+      setCurrentView(ViewState.ONBOARDING);
+      // 유저 상태 초기화
+      setCurrentUser(CURRENT_USER);
+    }
+  };
+
   const createPost = (data: any) => {
-    // Mocking random location near Seoul center for demonstration
+    // 데모를 위해 서울 중심부 근처 랜덤 위치 생성
     const randomLat = 37.5665 + (Math.random() - 0.5) * 0.05;
     const randomLng = 126.978 + (Math.random() - 0.5) * 0.05;
 
     const newPost: Post = {
       id: Date.now().toString(),
-      authorId: CURRENT_USER.id,
-      authorName: CURRENT_USER.name,
-      authorAvatar: CURRENT_USER.avatarUrl,
+      authorId: currentUser.id,
+      authorName: currentUser.name,
+      authorAvatar: currentUser.avatarUrl,
       title: data.title,
       description: data.description,
       category: "OTHER",
@@ -224,7 +253,7 @@ export const useAppLogic = () => {
     bookmarkedIds,
     selectedPost,
     selectedChatId,
-    // Handlers
+    // 핸들러
     goToHome,
     goToPostDetail,
     goToChatRoom,
@@ -237,8 +266,15 @@ export const useAppLogic = () => {
     handleSendMessage,
     handleLeaveChat,
     createPost,
-    // Nickname
-    goToNicknameSetup,
-    handleNicknameSubmit
+    // 프로필 설정
+    goToProfileSetup,
+    handleProfileSetupSubmit,
+    // 프로필 관리
+    currentUser,
+    goToProfileEdit,
+    goToProfile,
+    handleProfileUpdate,
+    handleLogout,
+    handleDeleteAccount
   };
 };

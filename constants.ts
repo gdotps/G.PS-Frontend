@@ -1,9 +1,11 @@
 import { Post, ChatRoom, User, Notification } from './types';
 
+export const DEFAULT_AVATAR = "/default_profile.png";
+
 export const CURRENT_USER: User = {
   id: 'me',
   name: '상경한꿈돌이',
-  avatarUrl: 'https://picsum.photos/seed/me/200/200',
+  avatarUrl: "", // 초기에는 이미지 없음
   isSanggyeongJwi: true,
   hometown: '부산',
 };
@@ -28,14 +30,14 @@ export const MOCK_POSTS: Post[] = [
     imageUrl: 'https://picsum.photos/seed/run/600/300',
     createdAt: Date.now(),
     comments: [
-        {
-            id: 'c1',
-            authorId: 'user5',
-            authorName: '달려라하니',
-            authorAvatar: 'https://picsum.photos/seed/user5/50/50',
-            text: '짐 보관할 곳 있나요?',
-            timestamp: Date.now() - 100000
-        }
+      {
+        id: 'c1',
+        authorId: 'user5',
+        authorName: '달려라하니',
+        authorAvatar: 'https://picsum.photos/seed/user5/50/50',
+        text: '짐 보관할 곳 있나요?',
+        timestamp: Date.now() - 100000
+      }
     ],
     applicants: []
   },
@@ -78,22 +80,22 @@ export const MOCK_POSTS: Post[] = [
     imageUrl: 'https://picsum.photos/seed/food/600/300',
     createdAt: Date.now() - 7200000,
     comments: [
-        {
-            id: 'c2',
-            authorId: 'user6',
-            authorName: '매운거좋아',
-            authorAvatar: 'https://picsum.photos/seed/user6/50/50',
-            text: '맵기 조절 가능한가요?',
-            timestamp: Date.now() - 50000
-        },
-        {
-            id: 'c3',
-            authorId: 'user3',
-            authorName: '떡볶이매니아',
-            authorAvatar: 'https://picsum.photos/seed/user3/100/100',
-            text: '네 가능해요! 순한맛으로 시킬 예정입니다.',
-            timestamp: Date.now() - 40000
-        }
+      {
+        id: 'c2',
+        authorId: 'user6',
+        authorName: '매운거좋아',
+        authorAvatar: 'https://picsum.photos/seed/user6/50/50',
+        text: '맵기 조절 가능한가요?',
+        timestamp: Date.now() - 50000
+      },
+      {
+        id: 'c3',
+        authorId: 'user3',
+        authorName: '떡볶이매니아',
+        authorAvatar: 'https://picsum.photos/seed/user3/100/100',
+        text: '네 가능해요! 순한맛으로 시킬 예정입니다.',
+        timestamp: Date.now() - 40000
+      }
     ],
     applicants: []
   },
@@ -129,9 +131,9 @@ export const MOCK_CHATS: ChatRoom[] = [
     unreadCount: 2,
     participants: ['me', 'user1'],
     messages: [
-        { id: 'm1', senderId: 'user1', text: '안녕하세요! 오늘 나오시나요?', timestamp: Date.now() - 86400000 },
-        { id: 'm2', senderId: 'me', text: '네 참석합니다!', timestamp: Date.now() - 86000000 },
-        { id: 'm3', senderId: 'user1', text: '3번 출구 앞에서 뵙겠습니다!', timestamp: Date.now() - 3600000 }
+      { id: 'm1', senderId: 'user1', text: '안녕하세요! 오늘 나오시나요?', timestamp: Date.now() - 86400000 },
+      { id: 'm2', senderId: 'me', text: '네 참석합니다!', timestamp: Date.now() - 86000000 },
+      { id: 'm3', senderId: 'user1', text: '3번 출구 앞에서 뵙겠습니다!', timestamp: Date.now() - 3600000 }
     ]
   },
   {
@@ -143,8 +145,8 @@ export const MOCK_CHATS: ChatRoom[] = [
     unreadCount: 0,
     participants: ['me', 'user3'],
     messages: [
-        { id: 'm1', senderId: 'user3', text: '혹시 어디쯤이세요?', timestamp: Date.now() - 100000 },
-        { id: 'm2', senderId: 'me', text: '저 지금 5분 내로 도착해요~', timestamp: Date.now() - 50000 }
+      { id: 'm1', senderId: 'user3', text: '혹시 어디쯤이세요?', timestamp: Date.now() - 100000 },
+      { id: 'm2', senderId: 'me', text: '저 지금 5분 내로 도착해요~', timestamp: Date.now() - 50000 }
     ]
   }
 ];

@@ -17,7 +17,8 @@ import { ChatRoomView } from './components/ChatRoomView';
 import { MapView } from './components/MapView';
 import { CreatePostView } from './components/CreatePostView';
 import { ProfileView } from './components/ProfileView';
-import { NicknameSetup } from './components/NicknameSetup';
+import { ProfileSetup } from './components/ProfileSetup';
+import { ProfileEdit } from './components/ProfileEdit';
 
 export default function App() {
   const {
@@ -31,17 +32,34 @@ export default function App() {
     handleAddComment,
     handleSendMessage, handleLeaveChat,
     createPost,
-    // Nickname
-    goToNicknameSetup, handleNicknameSubmit
+    // Profile Setup
+    goToProfileSetup, handleProfileSetupSubmit,
+    // Profile Management
+    currentUser,
+    goToProfileEdit, goToProfile,
+    handleProfileUpdate, handleLogout, handleDeleteAccount
   } = useAppLogic();
 
   // Route/View Switcher
   const renderContent = () => {
     switch (currentView) {
       case ViewState.ONBOARDING:
-        return <Onboarding onComplete={goToNicknameSetup} />;
-      case ViewState.NICKNAME_SETUP:
-        return <NicknameSetup onComplete={handleNicknameSubmit} />;
+        return <Onboarding onComplete={goToProfileSetup} />;
+      case ViewState.PROFILE_SETUP:
+        return (
+          <ProfileSetup
+            initialNickname={currentUser.name === '상경한꿈돌이' ? '' : currentUser.name}
+            onComplete={handleProfileSetupSubmit}
+          />
+        );
+      case ViewState.PROFILE_EDIT:
+        return (
+          <ProfileEdit
+            user={currentUser}
+            onSave={handleProfileUpdate}
+            onCancel={goToProfile}
+          />
+        );
       case ViewState.HOME:
         return (
           <HomeView
@@ -85,10 +103,13 @@ export default function App() {
       case ViewState.PROFILE:
         return (
           <ProfileView
-            user={CURRENT_USER}
+            user={currentUser}
             bookmarkCount={bookmarkedIds.length}
             onViewBookmarks={() => setCurrentView(ViewState.BOOKMARKS)}
             onViewApplicants={() => setCurrentView(ViewState.APPLICANTS)}
+            onEditProfile={goToProfileEdit}
+            onLogout={handleLogout}
+            onDeleteAccount={handleDeleteAccount}
           />
         );
       case ViewState.NOTIFICATIONS:
