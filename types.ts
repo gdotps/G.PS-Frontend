@@ -15,7 +15,7 @@ export enum ViewState {
 }
 
 export interface User {
-  id: string;
+  id: number;
   name: string;
   avatarUrl: string;
   isSanggyeongJwi: boolean;
@@ -25,8 +25,8 @@ export interface User {
 }
 
 export interface Comment {
-  id: string;
-  authorId: string;
+  id: number;
+  authorId: number;
   authorName: string;
   authorAvatar?: string;
   text: string;
@@ -34,8 +34,8 @@ export interface Comment {
 }
 
 export interface Post {
-  id: string;
-  authorId: string;
+  id: number;
+  authorId: number;
   authorName: string;
   authorAvatar: string;
   title: string;
@@ -57,29 +57,29 @@ export interface Post {
 }
 
 export interface Message {
-  id: string;
-  senderId: string;
+  id: number;
+  senderId: number;
   text: string;
   timestamp: number;
   isSystem?: boolean;
 }
 
 export interface ChatRoom {
-  id: string;
-  postId: string;
+  id: number;
+  postId: number;
   title: string;
   lastMessage: string;
   lastMessageTime: string;
   unreadCount: number;
-  participants: string[]; // User ID
+  participants: number[]; // User ID
   messages: Message[];
 }
 
 export interface Notification {
-  id: string;
-  type: "COMMENT" | "JOIN" | "SYSTEM";
+  id: number;
+  type: "COMMENT" | "JOIN" | "SYSTEM" | "CHAT" | "APPLY";
   message: string;
   timestamp: number;
   isRead: boolean;
-  relatedId?: string;
+  relatedId?: number;
 }

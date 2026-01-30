@@ -21,12 +21,12 @@ export const useAppLogic = () => {
   );
   const [currentUser, setCurrentUser] = useState<User>(CURRENT_USER);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
-  const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+  const [selectedChatId, setSelectedChatId] = useState<number | null>(null);
   const [posts, setPosts] = useState<Post[]>(MOCK_POSTS);
   const [chats, setChats] = useState<ChatRoom[]>(MOCK_CHATS);
   const [notifications, setNotifications] =
     useState<Notification[]>(MOCK_NOTIFICATIONS);
-  const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
+  const [bookmarkedIds, setBookmarkedIds] = useState<number[]>([]);
 
   // 네비게이션 헬퍼
   const goToHome = () => setCurrentView(ViewState.HOME);
@@ -36,7 +36,7 @@ export const useAppLogic = () => {
     setSelectedPost(post);
     setCurrentView(ViewState.POST_DETAIL);
   };
-  const goToChatRoom = (chatId: string) => {
+  const goToChatRoom = (chatId: number) => {
     setSelectedChatId(chatId);
     setCurrentView(ViewState.CHAT_ROOM);
   };
@@ -44,7 +44,7 @@ export const useAppLogic = () => {
   const goToProfile = () => setCurrentView(ViewState.PROFILE);
 
   // 액션
-  const toggleBookmark = (postId: string) => {
+  const toggleBookmark = (postId: number) => {
     setBookmarkedIds((prev) =>
       prev.includes(postId)
         ? prev.filter((id) => id !== postId)
@@ -73,15 +73,14 @@ export const useAppLogic = () => {
       const updatedPost = {
         ...selectedPost,
         applicants:
-          selectedPost.applicants?.filter((a) => a.id !== currentUser.id) ||
-          [],
+          selectedPost.applicants?.filter((a) => a.id !== currentUser.id) || [],
       };
       setPosts(posts.map((p) => (p.id === selectedPost.id ? updatedPost : p)));
       setSelectedPost(updatedPost);
     }
   };
 
-  const handleApprove = (postId: string, applicantId: string) => {
+  const handleApprove = (postId: number, applicantId: number) => {
     const post = posts.find((p) => p.id === postId);
     if (!post) return;
     if (post.currentMembers >= post.maxMembers) {
@@ -103,7 +102,7 @@ export const useAppLogic = () => {
     alert(`${applicant.name}님의 참여를 승인했습니다!`);
   };
 
-  const handleReject = (postId: string, applicantId: string) => {
+  const handleReject = (postId: number, applicantId: number) => {
     const post = posts.find((p) => p.id === postId);
     if (!post) return;
     const applicant = post.applicants?.find((u) => u.id === applicantId);
@@ -124,7 +123,7 @@ export const useAppLogic = () => {
   const handleAddComment = (text: string) => {
     if (!selectedPost) return;
     const newComment: Comment = {
-      id: Date.now().toString(),
+      id: Date.now(), // comment Id 나중에 다시 number로 매치해야함
       authorId: currentUser.id,
       authorName: currentUser.name,
       authorAvatar: currentUser.avatarUrl,
@@ -142,7 +141,7 @@ export const useAppLogic = () => {
   const handleSendMessage = async (text: string) => {
     if (!selectedChatId) return;
     const newMessage: Message = {
-      id: Date.now().toString(),
+      id: Date.now(), // string에서 이걸로 변경됨
       senderId: currentUser.id,
       text: text,
       timestamp: Date.now(),
@@ -162,7 +161,7 @@ export const useAppLogic = () => {
     setChats(updatedChats);
   };
 
-  const handleLeaveChat = (chatId: string) => {
+  const handleLeaveChat = (chatId: number) => {
     const leftChats = chats.filter((c) => c.id !== chatId);
     setChats(leftChats);
     setCurrentView(ViewState.CHAT_LIST);
@@ -225,7 +224,7 @@ export const useAppLogic = () => {
     const randomLng = 126.978 + (Math.random() - 0.5) * 0.05;
 
     const newPost: Post = {
-      id: Date.now().toString(),
+      id: Date.now(),
       authorId: currentUser.id,
       authorName: currentUser.name,
       authorAvatar: currentUser.avatarUrl,
