@@ -72,6 +72,21 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           </div>
         </div>
       </div>
+
+      <div className="mt-8 space-y-3 pb-24">
+        <button
+          onClick={onLogout}
+          className="w-full py-3 text-sm font-medium text-gray-500 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+        >
+          로그아웃
+        </button>
+        <button
+          onClick={onDeleteAccount}
+          className="w-full py-3 text-sm font-medium text-red-500 bg-red-50 rounded-xl hover:bg-red-100 transition-colors"
+        >
+          회원 탈퇴
+        </button>
+      </div>
     </div>
   );
 };
