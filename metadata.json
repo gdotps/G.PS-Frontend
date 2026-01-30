@@ -1,0 +1,7 @@
+{
+  "name": "G.PS - 상경쥐들의 모임",
+  "description": "낯선 서울, 함께라면 꽤 살만한 곳. 상경한 청년들을 위한 위치 기반 1회성 파티원 모집 서비스 G.PS입니다.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
