@@ -8,6 +8,7 @@ import {
   Info,
   Bell,
   MessageCircleMore,
+  UserPlus,
 } from "lucide-react";
 
 export const NotificationView: React.FC<{
@@ -22,6 +23,8 @@ export const NotificationView: React.FC<{
         return <Users size={16} className="text-white" />;
       case "CHAT":
         return <MessageCircleMore size={16} className="text-white" />;
+      case "APPLY":
+        return <UserPlus size={16} className="text-white" />;
       case "SYSTEM":
         return <Info size={16} className="text-white" />;
       default:
@@ -30,8 +33,8 @@ export const NotificationView: React.FC<{
       // 알림 종류
       /*
       1. 댓글 - 완료 
-      2. 누군가가 내 게시글에 지원함 
-      3. 채팅 알림 
+      2. 누군가가 내 게시글에 지원함 - 완료 
+      3. 채팅 알림 - 완료 
       4. 지원 후 조인상태 - 완료 
       */
     }
@@ -42,9 +45,11 @@ export const NotificationView: React.FC<{
       case "COMMENT":
         return "bg-gray-400";
       case "JOIN":
-        return "bg-gps-500"; // Join events feel special, keep yellow
+        return "bg-gps-500";
       case "CHAT":
         return "bg-blue-500";
+      case "APPLY":
+        return "bg-red-500";
       case "SYSTEM":
         return "bg-gray-400";
       default:
