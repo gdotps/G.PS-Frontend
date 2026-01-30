@@ -21,6 +21,7 @@ export interface User {
   isSanggyeongJwi: boolean;
   hometown?: string;
   introduction?: string;
+  notificationEnabled?: boolean;
 }
 
 export interface Comment {

@@ -212,6 +212,13 @@ export const useAppLogic = () => {
     }
   };
 
+  const toggleNotification = () => {
+    setCurrentUser((prev) => ({
+      ...prev,
+      notificationEnabled: !prev.notificationEnabled,
+    }));
+  };
+
   const createPost = (data: any) => {
     // 데모를 위해 서울 중심부 근처 랜덤 위치 생성
     const randomLat = 37.5665 + (Math.random() - 0.5) * 0.05;
@@ -275,6 +282,7 @@ export const useAppLogic = () => {
     goToProfile,
     handleProfileUpdate,
     handleLogout,
-    handleDeleteAccount
+    handleDeleteAccount,
+    toggleNotification,
   };
 };

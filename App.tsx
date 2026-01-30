@@ -37,7 +37,8 @@ export default function App() {
     // Profile Management
     currentUser,
     goToProfileEdit, goToProfile,
-    handleProfileUpdate, handleLogout, handleDeleteAccount
+    handleProfileUpdate, handleLogout, handleDeleteAccount,
+    toggleNotification
   } = useAppLogic();
 
   // Route/View Switcher
@@ -110,6 +111,7 @@ export default function App() {
             onEditProfile={goToProfileEdit}
             onLogout={handleLogout}
             onDeleteAccount={handleDeleteAccount}
+            onToggleNotification={toggleNotification}
           />
         );
       case ViewState.NOTIFICATIONS:

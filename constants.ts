@@ -8,6 +8,7 @@ export const CURRENT_USER: User = {
   avatarUrl: "", // 초기에는 이미지 없음
   isSanggyeongJwi: true,
   hometown: '부산',
+  notificationEnabled: true,
 };
 
 export const MOCK_POSTS: Post[] = [

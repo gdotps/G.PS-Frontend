@@ -11,6 +11,7 @@ interface ProfileViewProps {
   onEditProfile: () => void;
   onLogout: () => void;
   onDeleteAccount: () => void;
+  onToggleNotification: () => void;
 }
 
 export const ProfileView: React.FC<ProfileViewProps> = ({
@@ -20,7 +21,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onViewApplicants,
   onEditProfile,
   onLogout,
-  onDeleteAccount
+  onDeleteAccount,
+  onToggleNotification
 }) => {
   return (
     <div className="pt-20 px-4 text-center">
@@ -46,6 +48,23 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           "{user.introduction}"
         </p>
       )}
+
+      {/* 설정 섹션 */}
+      <div className="bg-white p-4 rounded-2xl shadow-sm text-left mb-4 space-y-4">
+        <h3 className="font-bold mb-2">설정</h3>
+        <div className="flex justify-between items-center py-2">
+          <span>알림 설정</span>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              className="sr-only peer"
+              checked={user.notificationEnabled !== false} // 기본값 true 처리
+              onChange={onToggleNotification}
+            />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-gps-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gps-500"></div>
+          </label>
+        </div>
+      </div>
 
       <div className="bg-white p-4 rounded-2xl shadow-sm text-left mb-4 space-y-4">
         <h3 className="font-bold mb-2">나의 활동</h3>
