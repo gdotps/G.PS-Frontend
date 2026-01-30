@@ -40,7 +40,7 @@ export interface Post {
   authorAvatar: string;
   title: string;
   description: string;
-  category: "FOOD" | "HOBBY" | "STUDY" | "EXERCISE" | "OTHER";
+  category: "FOOD" | "HOBBY" | "STUDY" | "EXERCISE" | "ETC";
   location: string;
   distance: string;
   lat?: number;
