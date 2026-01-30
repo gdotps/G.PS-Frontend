@@ -77,7 +77,7 @@ export interface ChatRoom {
 
 export interface Notification {
   id: string;
-  type: "COMMENT" | "JOIN" | "SYSTEM";
+  type: "COMMENT" | "JOIN" | "SYSTEM" | "CHAT";
   message: string;
   timestamp: number;
   isRead: boolean;

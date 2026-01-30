@@ -1,7 +1,14 @@
 import React from "react";
 import { Notification } from "../types";
 import { Header } from "./Header";
-import { ChevronLeft, MessageSquare, Users, Info, Bell } from "lucide-react";
+import {
+  ChevronLeft,
+  MessageSquare,
+  Users,
+  Info,
+  Bell,
+  MessageCircleMore,
+} from "lucide-react";
 
 export const NotificationView: React.FC<{
   notifications: Notification[];
@@ -13,6 +20,8 @@ export const NotificationView: React.FC<{
         return <MessageSquare size={16} className="text-white" />;
       case "JOIN":
         return <Users size={16} className="text-white" />;
+      case "CHAT":
+        return <MessageCircleMore size={16} className="text-white" />;
       case "SYSTEM":
         return <Info size={16} className="text-white" />;
       default:
@@ -20,10 +29,10 @@ export const NotificationView: React.FC<{
 
       // 알림 종류
       /*
-      1. 댓글 
+      1. 댓글 - 완료 
       2. 누군가가 내 게시글에 지원함 
       3. 채팅 알림 
-      4. 지원 
+      4. 지원 후 조인상태 - 완료 
       */
     }
   };
@@ -34,6 +43,8 @@ export const NotificationView: React.FC<{
         return "bg-gray-400";
       case "JOIN":
         return "bg-gps-500"; // Join events feel special, keep yellow
+      case "CHAT":
+        return "bg-blue-500";
       case "SYSTEM":
         return "bg-gray-400";
       default:
