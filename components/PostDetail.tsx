@@ -11,8 +11,8 @@ export const PostDetail: React.FC<{
     onBack: () => void, 
     onJoin: () => void, 
     onCancelJoin: () => void, 
-    onApprove: (postId: string, applicantId: string) => void,
-    onReject: (postId: string, applicantId: string) => void,
+    onApprove: (postId: number, applicantId: number) => void,
+    onReject: (postId: number, applicantId: number) => void,
     onAddComment: (text: string) => void 
 }> = ({ post, isBookmarked, onToggleBookmark, onBack, onJoin, onCancelJoin, onApprove, onReject, onAddComment }) => {
   const [commentText, setCommentText] = useState('');

@@ -3,9 +3,9 @@ import { Post, ChatRoom, User, Notification } from "./types";
 export const DEFAULT_AVATAR = "/default_profile.png";
 
 export const CURRENT_USER: User = {
-  id: "me",
+  id: 1,
   name: "상경한꿈돌이",
-  avatarUrl: "", // 초기에는 이미지 없음
+  avatarUrl: "",
   isSanggyeongJwi: true,
   hometown: "부산",
   notificationEnabled: true,
@@ -13,8 +13,8 @@ export const CURRENT_USER: User = {
 
 export const MOCK_POSTS: Post[] = [
   {
-    id: "1",
-    authorId: "user1",
+    id: 1,
+    authorId: 2,
     authorName: "한강러닝크루",
     authorAvatar: "https://picsum.photos/seed/user1/100/100",
     title: "오늘 밤 한강 5km 뛰실 분? 🏃‍♂️",
@@ -33,8 +33,8 @@ export const MOCK_POSTS: Post[] = [
     createdAt: Date.now(),
     comments: [
       {
-        id: "c1",
-        authorId: "user5",
+        id: 1,
+        authorId: 6,
         authorName: "달려라하니",
         authorAvatar: "https://picsum.photos/seed/user5/50/50",
         text: "짐 보관할 곳 있나요?",
@@ -44,8 +44,8 @@ export const MOCK_POSTS: Post[] = [
     applicants: [],
   },
   {
-    id: "2",
-    authorId: "user2",
+    id: 2,
+    authorId: 3,
     authorName: "카페코딩",
     authorAvatar: "https://picsum.photos/seed/user2/100/100",
     title: "홍대 카페에서 모각코 하실 분 ☕️",
@@ -65,8 +65,8 @@ export const MOCK_POSTS: Post[] = [
     applicants: [],
   },
   {
-    id: "3",
-    authorId: "user3",
+    id: 3,
+    authorId: 4,
     authorName: "떡볶이매니아",
     authorAvatar: "https://picsum.photos/seed/user3/100/100",
     title: "급구: 신당동 떡볶이 파티원 (2/4)",
@@ -85,16 +85,16 @@ export const MOCK_POSTS: Post[] = [
     createdAt: Date.now() - 7200000,
     comments: [
       {
-        id: "c2",
-        authorId: "user6",
+        id: 2,
+        authorId: 7,
         authorName: "매운거좋아",
         authorAvatar: "https://picsum.photos/seed/user6/50/50",
         text: "맵기 조절 가능한가요?",
         timestamp: Date.now() - 50000,
       },
       {
-        id: "c3",
-        authorId: "user3",
+        id: 3,
+        authorId: 4,
         authorName: "떡볶이매니아",
         authorAvatar: "https://picsum.photos/seed/user3/100/100",
         text: "네 가능해요! 순한맛으로 시킬 예정입니다.",
@@ -104,8 +104,8 @@ export const MOCK_POSTS: Post[] = [
     applicants: [],
   },
   {
-    id: "4",
-    authorId: "user4",
+    id: 4,
+    authorId: 5,
     authorName: "놀이터대장",
     authorAvatar: "https://picsum.photos/seed/user4/100/100",
     title: "어린이대공원에서 경찰과 도둑 하실 분? 🕵️",
@@ -128,52 +128,52 @@ export const MOCK_POSTS: Post[] = [
 
 export const MOCK_CHATS: ChatRoom[] = [
   {
-    id: "room1",
-    postId: "1",
+    id: 1,
+    postId: 1,
     title: "오늘 밤 한강 5km 뛰실 분? 🏃‍♂️",
     lastMessage: "3번 출구 앞에서 뵙겠습니다!",
     lastMessageTime: "오전 10:30",
     unreadCount: 2,
-    participants: ["me", "user1"],
+    participants: [1, 2],
     messages: [
       {
-        id: "m1",
-        senderId: "user1",
+        id: 1,
+        senderId: 2,
         text: "안녕하세요! 오늘 나오시나요?",
         timestamp: Date.now() - 86400000,
       },
       {
-        id: "m2",
-        senderId: "me",
+        id: 2,
+        senderId: 1,
         text: "네 참석합니다!",
         timestamp: Date.now() - 86000000,
       },
       {
-        id: "m3",
-        senderId: "user1",
+        id: 3,
+        senderId: 2,
         text: "3번 출구 앞에서 뵙겠습니다!",
         timestamp: Date.now() - 3600000,
       },
     ],
   },
   {
-    id: "room2",
-    postId: "3",
+    id: 2,
+    postId: 3,
     title: "급구: 신당동 떡볶이 파티원",
     lastMessage: "저 지금 5분 내로 도착해요~",
     lastMessageTime: "어제",
     unreadCount: 0,
-    participants: ["me", "user3"],
+    participants: [1, 4],
     messages: [
       {
-        id: "m1",
-        senderId: "user3",
+        id: 4,
+        senderId: 4,
         text: "혹시 어디쯤이세요?",
         timestamp: Date.now() - 100000,
       },
       {
-        id: "m2",
-        senderId: "me",
+        id: 5,
+        senderId: 1,
         text: "저 지금 5분 내로 도착해요~",
         timestamp: Date.now() - 50000,
       },
@@ -183,20 +183,20 @@ export const MOCK_CHATS: ChatRoom[] = [
 
 export const MOCK_NOTIFICATIONS: Notification[] = [
   {
-    id: "n1",
+    id: 1,
     type: "COMMENT",
     message: "'달려라하니'님이 댓글을 남겼습니다: 짐 보관할 곳 있나요?",
     timestamp: Date.now() - 100000,
     isRead: false,
-    relatedId: "1",
+    relatedId: 1,
   },
   {
-    id: "n2",
+    id: 2,
     type: "JOIN",
     message: "'매운거좋아'님이 '신당동 떡볶이' 모임에 참여했습니다.",
     timestamp: Date.now() - 5000000,
     isRead: true,
-    relatedId: "3",
+    relatedId: 3,
   },
   // {
   //   id: "n3",
@@ -206,14 +206,14 @@ export const MOCK_NOTIFICATIONS: Notification[] = [
   //   isRead: true,
   // },
   {
-    id: "n4",
+    id: 4,
     type: "CHAT",
     message: "경도 열판 채팅방에서 '한강러닝크루'님이 새 메시지를 보냈습니다.",
     timestamp: Date.now() - 86400000,
     isRead: true,
   },
   {
-    id: "n5",
+    id: 5,
     type: "APPLY",
     message: "희디님이 '오늘 밤 한강 5km 뛰실 분?' 모임에 지원했습니다.",
     timestamp: Date.now() - 86400000,
