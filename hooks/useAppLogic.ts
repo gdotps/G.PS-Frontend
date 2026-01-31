@@ -73,8 +73,7 @@ export const useAppLogic = () => {
       const updatedPost = {
         ...selectedPost,
         applicants:
-          selectedPost.applicants?.filter((a) => a.id !== currentUser.id) ||
-          [],
+          selectedPost.applicants?.filter((a) => a.id !== currentUser.id) || [],
       };
       setPosts(posts.map((p) => (p.id === selectedPost.id ? updatedPost : p)));
       setSelectedPost(updatedPost);
@@ -231,7 +230,7 @@ export const useAppLogic = () => {
       authorAvatar: currentUser.avatarUrl,
       title: data.title,
       description: data.description,
-      category: "OTHER",
+      category: data.category,
       location: data.location,
       distance: "100m",
       lat: data.meetupType === "ONLINE" ? undefined : randomLat,

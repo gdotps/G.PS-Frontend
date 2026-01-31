@@ -178,6 +178,45 @@ export const CreatePostView: React.FC<{
           </div>
         </div>
 
+        <div>
+          <label className="block text-sm font-bold text-gray-900 mb-2">
+            모임 카테고리
+          </label>
+          <div className="flex gap-2">
+            <button
+              onClick={() => handleTagChange("FOOD")}
+              className={`flex-1 py-3 rounded-xl font-bold transition-all border ${tag === "FOOD" ? "bg-gray-900 text-white border-gray-900 shadow-md" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}
+            >
+              맛집
+            </button>
+            <button
+              onClick={() => handleTagChange("EXERCISE")}
+              className={`flex-1 py-3 rounded-xl font-bold transition-all border ${tag === "EXERCISE" ? "bg-gray-900 text-white border-gray-900 shadow-md" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}
+            >
+              운동
+            </button>
+
+            <button
+              onClick={() => handleTagChange("STUDY")}
+              className={`flex-1 py-3 rounded-xl font-bold transition-all border ${tag === "STUDY" ? "bg-gray-900 text-white border-gray-900 shadow-md" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}
+            >
+              스터디
+            </button>
+            <button
+              onClick={() => handleTagChange("HOBBY")}
+              className={`flex-1 py-3 rounded-xl font-bold transition-all border ${tag === "HOBBY" ? "bg-gray-900 text-white border-gray-900 shadow-md" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}
+            >
+              취미
+            </button>
+            <button
+              onClick={() => handleTagChange("ETC")}
+              className={`flex-1 py-3 rounded-xl font-bold transition-all border ${tag === "ETC" ? "bg-gray-900 text-white border-gray-900 shadow-md" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}
+            >
+              기타
+            </button>
+          </div>
+        </div>
+
         {/* Time */}
         <div className="flex gap-3">
           <div className="flex-1">
