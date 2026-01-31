@@ -230,7 +230,7 @@ export const useAppLogic = () => {
       authorAvatar: currentUser.avatarUrl,
       title: data.title,
       description: data.description,
-      category: "OTHER",
+      category: data.category,
       location: data.location,
       distance: "100m",
       lat: data.meetupType === "ONLINE" ? undefined : randomLat,
