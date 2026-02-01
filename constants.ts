@@ -134,7 +134,7 @@ export const MOCK_CHATS: ChatRoom[] = [
     lastMessage: "3번 출구 앞에서 뵙겠습니다!",
     lastMessageTime: "오전 10:30",
     unreadCount: 2,
-    participants: [1, 2],
+    participants: [1, 2, 3],
     messages: [
       {
         id: 1,
@@ -152,6 +152,12 @@ export const MOCK_CHATS: ChatRoom[] = [
         id: 3,
         senderId: 2,
         text: "3번 출구 앞에서 뵙겠습니다!",
+        timestamp: Date.now() - 3600000,
+      },
+      {
+        id: 4,
+        senderId: 3,
+        text: "저도!! 3번 출구 앞에서 뵙겠습니다!",
         timestamp: Date.now() - 3600000,
       },
     ],
