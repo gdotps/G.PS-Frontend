@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ViewState } from './types';
 import { CURRENT_USER } from './constants';
 import { BottomNav } from './components/BottomNav';
@@ -38,8 +38,19 @@ export default function App() {
     currentUser,
     goToProfileEdit, goToProfile,
     handleProfileUpdate, handleLogout, handleDeleteAccount,
-    toggleNotification
+    toggleNotification,
+    checkLoginStatus // Updated hook name
   } = useAppLogic();
+
+  useEffect(() => {
+    // 앱 시작 시 쿠키 기반 로그인 상태 확인
+    checkLoginStatus();
+
+    // URL에 남아있을 수 있는 토큰 파라미터 청소 (이제 필요 없지만 깔끔하게 유지)
+    if (window.location.search.includes('token=')) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [checkLoginStatus]);
 
   // Route/View Switcher
   const renderContent = () => {

@@ -250,6 +250,47 @@ export const useAppLogic = () => {
     setCurrentView(ViewState.HOME);
   };
 
+  // 쿠키 기반 로그인 상태 확인
+  const checkLoginStatus = async () => {
+    try {
+      // credentials: 'include'를 추가하여 쿠키를 백엔드로 전송
+      const response = await fetch("http://localhost:8080/auth", {
+        method: "GET", // GET 요청 명시
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        // ApiResponse 구조에 맞게 수정 (result.data가 MemberInfoDto)
+        if (result.data) {
+          const userData = result.data;
+          setCurrentUser({
+            id: userData.id,
+            name: userData.name,
+            avatarUrl: userData.profileUrl || "/default_profile.png",
+            isSanggyeongJwi: true,
+            hometown: "지역 미설정",
+            introduction: "",
+            notificationEnabled: true,
+          });
+
+          // 로그인 성공 시 홈으로 이동 (현재 뷰가 온보딩일 경우에만)
+          if (currentView === ViewState.ONBOARDING) {
+            setCurrentView(ViewState.HOME);
+          }
+        }
+      } else {
+        console.log("Not authenticated (Cookie not found or invalid)");
+        // 로그인 실패 시 온보딩 유지 (아무것도 안 함)
+      }
+    } catch (error) {
+      console.error("Failed to check login status:", error);
+    }
+  };
+
   return {
     currentView,
     setCurrentView,
@@ -283,5 +324,6 @@ export const useAppLogic = () => {
     handleLogout,
     handleDeleteAccount,
     toggleNotification,
+    checkLoginStatus,
   };
 };
