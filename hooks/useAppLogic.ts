@@ -1,19 +1,27 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import {
-  ViewState,
-  User,
-  Post,
-  ChatRoom,
-  Message,
-  Comment,
-  Notification,
-} from "../types";
-import {
-  MOCK_POSTS,
+  CURRENT_USER,
   MOCK_CHATS,
   MOCK_NOTIFICATIONS,
-  CURRENT_USER,
+  MOCK_POSTS,
 } from "../constants";
+import {
+  cleanUpUrl,
+  clearTokens,
+  getAccessToken,
+  parseCallbackError,
+  parseCallbackParams,
+  saveAccessToken,
+} from "../services/authService";
+import {
+  ChatRoom,
+  Comment,
+  Message,
+  Notification,
+  Post,
+  User,
+  ViewState,
+} from "../types";
 
 export const useAppLogic = () => {
   const [currentView, setCurrentView] = useState<ViewState>(
@@ -195,8 +203,8 @@ export const useAppLogic = () => {
 
   const handleLogout = () => {
     if (window.confirm("로그아웃 하시겠습니까?")) {
-      // 실제 앱: 토큰 삭제, 유저 상태 초기화 등
-      // 프로토타입: 온보딩으로 이동 및 초기화 시뮬레이션
+      clearTokens();
+      setCurrentUser(CURRENT_USER);
       setCurrentView(ViewState.ONBOARDING);
     }
   };
@@ -250,6 +258,83 @@ export const useAppLogic = () => {
     setCurrentView(ViewState.HOME);
   };
 
+  // OAuth2 콜백 처리 및 로그인 상태 확인
+  const checkLoginStatus = useCallback(async () => {
+    // 1. OAuth2 콜백 에러 처리
+    const callbackError = parseCallbackError();
+    if (callbackError) {
+      console.error("소셜 로그인 실패:", callbackError);
+      alert(`로그인에 실패했습니다: ${callbackError}`);
+      cleanUpUrl();
+      return;
+    }
+
+    // 2. OAuth2 콜백 성공 처리 (URL에 토큰 파라미터가 있는 경우)
+    const loginData = parseCallbackParams();
+    if (loginData) {
+      saveAccessToken(loginData.accessToken);
+      cleanUpUrl();
+
+      setCurrentUser((prev) => ({
+        ...prev,
+        id: loginData.userId,
+      }));
+
+      // 신규 유저: 프로필 설정으로 이동
+      if (loginData.isNewUser) {
+        setCurrentView(ViewState.PROFILE_SETUP);
+        return;
+      }
+
+      // 기존 유저: 홈으로 이동
+      setCurrentView(ViewState.HOME);
+      return;
+    }
+
+    // 3. 기존 토큰 기반 로그인 상태 확인
+    const existingToken = getAccessToken();
+    if (!existingToken) {
+      console.log("Not authenticated (No token found)");
+      return;
+    }
+
+    try {
+      const response = await fetch("http://localhost:8080/auth", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${existingToken}`,
+        },
+        credentials: "include",
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.data) {
+          const userData = result.data;
+          setCurrentUser({
+            id: userData.id,
+            name: userData.name,
+            avatarUrl: userData.profileUrl || "/default_profile.png",
+            isSanggyeongJwi: true,
+            hometown: "지역 미설정",
+            introduction: "",
+            notificationEnabled: true,
+          });
+
+          if (currentView === ViewState.ONBOARDING) {
+            setCurrentView(ViewState.HOME);
+          }
+        }
+      } else {
+        console.log("Not authenticated (Token invalid or expired)");
+        clearTokens();
+      }
+    } catch (error) {
+      console.error("Failed to check login status:", error);
+    }
+  }, [currentView]);
+
   return {
     currentView,
     setCurrentView,
@@ -283,5 +368,6 @@ export const useAppLogic = () => {
     handleLogout,
     handleDeleteAccount,
     toggleNotification,
+    checkLoginStatus,
   };
 };
