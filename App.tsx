@@ -1,24 +1,23 @@
-import React, { useEffect } from 'react';
-import { ViewState } from './types';
-import { CURRENT_USER } from './constants';
+import { useEffect } from 'react';
 import { BottomNav } from './components/BottomNav';
 import { useAppLogic } from './hooks/useAppLogic';
 import { getUserInfo } from './services/userService';
+import { ViewState } from './types';
 
 // Components
-import { Onboarding } from './components/Onboarding';
-import { HomeView } from './components/HomeView';
-import { BookmarksView } from './components/BookmarksView';
 import { ApplicantListView } from './components/ApplicantListView';
-import { NotificationView } from './components/NotificationView';
-import { PostDetail } from './components/PostDetail';
+import { BookmarksView } from './components/BookmarksView';
 import { ChatList } from './components/ChatList';
 import { ChatRoomView } from './components/ChatRoomView';
-import { MapView } from './components/MapView';
 import { CreatePostView } from './components/CreatePostView';
-import { ProfileView } from './components/ProfileView';
-import { ProfileSetup } from './components/ProfileSetup';
+import { HomeView } from './components/HomeView';
+import { MapView } from './components/MapView';
+import { NotificationView } from './components/NotificationView';
+import { Onboarding } from './components/Onboarding';
+import { PostDetail } from './components/PostDetail';
 import { ProfileEdit } from './components/ProfileEdit';
+import { ProfileSetup } from './components/ProfileSetup';
+import { ProfileView } from './components/ProfileView';
 
 export default function App() {
   const {
@@ -43,20 +42,15 @@ export default function App() {
   } = useAppLogic();
 
   useEffect(() => {
-    // 앱 시작 시 쿠키 기반 로그인 상태 확인
+    // 앱 시작 시 로그인 상태 확인 (OAuth2 콜백 처리 포함)
     checkLoginStatus();
-
-    // URL에 남아있을 수 있는 토큰 파라미터 청소 (이제 필요 없지만 깔끔하게 유지)
-    if (window.location.search.includes('token=')) {
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
   }, [checkLoginStatus]);
 
   // Route/View Switcher
   const renderContent = () => {
     switch (currentView) {
       case ViewState.ONBOARDING:
-        return <Onboarding onComplete={goToProfileSetup} />;
+        return <Onboarding onComplete={goToHome} />;
       case ViewState.PROFILE_SETUP:
         return (
           <ProfileSetup
