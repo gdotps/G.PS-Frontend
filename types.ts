@@ -40,7 +40,8 @@ export interface Post {
   authorAvatar: string;
   title: string;
   description: string;
-  category: "FOOD" | "HOBBY" | "STUDY" | "EXERCISE" | "ETC";
+  category: "SPORTS" | "STUDY" | "FOOD" | "HOBBY" | "GAME" | "MUSIC" | "ETC";
+  meetingType: "OFFLINE" | "ONLINE";
   location: string;
   distance: string;
   lat?: number;

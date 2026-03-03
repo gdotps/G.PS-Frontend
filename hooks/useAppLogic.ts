@@ -14,6 +14,10 @@ import {
   saveAccessToken,
 } from "../services/authService";
 import {
+  createPost as apiCreatePost,
+  PostRequest,
+} from "../services/postService";
+import {
   ChatRoom,
   Comment,
   Message,
@@ -226,36 +230,57 @@ export const useAppLogic = () => {
     }));
   };
 
-  const createPost = (data: any) => {
-    // 데모를 위해 서울 중심부 근처 랜덤 위치 생성
-    const randomLat = 37.5665 + (Math.random() - 0.5) * 0.05;
-    const randomLng = 126.978 + (Math.random() - 0.5) * 0.05;
+  const createPost = async (data: any) => {
+    // assemble backend request payload (accept either `meetingType` or `meetupType` from UI)
+    const meetingType = data.meetingType ?? data.meetupType;
 
-    const newPost: Post = {
-      id: Date.now(),
-      authorId: currentUser.id,
-      authorName: currentUser.name,
-      authorAvatar: currentUser.avatarUrl,
+    const request: PostRequest = {
       title: data.title,
-      description: data.description,
+      content: data.content || data.description,
       category: data.category,
-      location: data.location,
-      distance: "100m",
-      lat: data.meetupType === "ONLINE" ? undefined : randomLat,
-      lng: data.meetupType === "ONLINE" ? undefined : randomLng,
-      maxMembers: 4,
-      currentMembers: 1,
-      time: data.time,
-      tags: ["신규"],
-      createdAt: Date.now(),
-      comments: [],
-      applicants: [],
-      imageUrl:
-        data.images && data.images.length > 0 ? data.images[0] : undefined,
-      images: data.images,
+      meetingType,
+      meetingTime: data.meetingTime ?? data.time,
+      maxMembers: data.maxMembers,
+      locationName:
+        meetingType === "ONLINE" ? null : (data.location ?? data.locationName),
+      imageUrls: data.imageUrls ?? data.images,
     };
-    setPosts([newPost, ...posts]);
-    setCurrentView(ViewState.HOME);
+
+    try {
+      const result = await apiCreatePost(request);
+
+      // optimistic local update – still keep UX smooth until full sync
+      const newPost: Post = {
+        id: result.postId || Date.now(),
+        authorId: currentUser.id,
+        authorName: currentUser.name,
+        authorAvatar: currentUser.avatarUrl,
+        title: request.title,
+        description: request.content,
+        category: request.category as any,
+        location: request.locationName || "",
+        distance: "",
+        meetingType: data.meetingType === "ONLINE" ? "ONLINE" : "OFFLINE",
+        maxMembers: request.maxMembers,
+        currentMembers: 1,
+        time: request.meetingTime,
+        tags: ["신규"],
+        createdAt: Date.now(),
+        comments: [],
+        applicants: [],
+        imageUrl:
+          request.imageUrls && request.imageUrls.length > 0
+            ? request.imageUrls[0]
+            : undefined,
+        images: request.imageUrls,
+      };
+      setPosts([newPost, ...posts]);
+      setCurrentView(ViewState.HOME);
+    } catch (err) {
+      console.log("accessToken is", getAccessToken());
+      console.error(err);
+      alert("모임 등록에 실패했습니다.");
+    }
   };
 
   // OAuth2 콜백 처리 및 로그인 상태 확인
