@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-import { Post } from "../types";
-import { CURRENT_USER } from "../constants";
+import { Post, User } from "../types";
 import { Header } from "./Header";
 import {
   ChevronLeft,
@@ -14,6 +13,7 @@ import {
 
 export const PostDetail: React.FC<{
   post: Post;
+  currentUser: User;
   isBookmarked: boolean;
   onToggleBookmark: () => void;
   onBack: () => void;
@@ -22,8 +22,11 @@ export const PostDetail: React.FC<{
   onApprove: (postId: number, applicantId: number) => void;
   onReject: (postId: number, applicantId: number) => void;
   onAddComment: (text: string) => void;
+  //onEdit: (postId: number) => void;
+  onEdit: () => void; // 추가
 }> = ({
   post,
+  currentUser,
   isBookmarked,
   onToggleBookmark,
   onBack,
@@ -32,6 +35,7 @@ export const PostDetail: React.FC<{
   onApprove,
   onReject,
   onAddComment,
+  onEdit,
 }) => {
   const [commentText, setCommentText] = useState("");
 
@@ -43,9 +47,11 @@ export const PostDetail: React.FC<{
   };
 
   // Check if current user is the host
-  const isHost = post.authorId === CURRENT_USER.id;
+  const isHost = post.authorId === currentUser.userId;
   // Check if current user has already applied
-  const hasApplied = post.applicants?.some((a) => a.id === CURRENT_USER.id);
+  const hasApplied = post.applicants?.some(
+    (a) => a.userId === currentUser.userId,
+  );
 
   return (
     <div className="bg-white min-h-screen pb-32">
@@ -111,7 +117,8 @@ export const PostDetail: React.FC<{
 
           {isHost && (
             <button
-              onClick={() => console.log("Edit post clicked", post.id)}
+              //onClick={() => onEdit(post.id)}
+              onClick={onEdit}
               className="p-2 rounded-full border border-gray-200 hover:bg-gray-100 transition-colors"
               aria-label="게시물 수정"
             >
@@ -249,7 +256,7 @@ export const PostDetail: React.FC<{
           <form onSubmit={handleSubmit} className="flex gap-2 items-center">
             <div className="w-8 h-8 rounded-full bg-gray-200 shrink-0 overflow-hidden">
               <img
-                src={CURRENT_USER.avatarUrl}
+                src={currentUser.profileUrl}
                 alt="me"
                 className="w-full h-full object-cover"
               />
