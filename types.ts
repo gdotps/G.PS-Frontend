@@ -12,14 +12,13 @@ export enum ViewState {
   NOTIFICATIONS = "NOTIFICATIONS",
   BOOKMARKS = "BOOKMARKS",
   APPLICANTS = "APPLICANTS",
+  EDIT_POST = "EDIT_POST",
 }
 
 export interface User {
-  id: number;
-  name: string;
-  avatarUrl: string;
-  isSanggyeongJwi: boolean;
-  hometown?: string;
+  userId: number;
+  nickname: string;
+  profileUrl: string;
   introduction?: string;
   notificationEnabled?: boolean;
 }
