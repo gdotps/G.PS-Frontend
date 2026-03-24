@@ -8,19 +8,8 @@ export const CreatePostView: React.FC<{
   onCreate: (post: any) => void | Promise<void>;
   initialPost?: any;
 }> = ({ onCancel, onCreate, initialPost }) => {
-  // const [title, setTitle] = useState(initialPost?.title || "");
-  // const [date, setDate] = useState("");
-  // const [time, setTime] = useState("");
-  // const [location, setLocation] = useState("");
-  // const [description, setDescription] = useState("");
-  // const [meetupType, setMeetupType] = useState<"OFFLINE" | "ONLINE">("OFFLINE");
-  // const [maxMembers, setMaxMembers] = useState<number>(2);
-  // const [images, setImages] = useState<string[]>([]);
   const [showAddressSearch, setShowAddressSearch] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  // const [tag, setTag] = useState<
-  //   "SPORTS" | "STUDY" | "FOOD" | "HOBBY" | "GAME" | "MUSIC" | "ETC"
-  // >("FOOD");
   const [title, setTitle] = useState(initialPost?.title || "");
   const [date, setDate] = useState(initialPost?.time?.split(" ")[0] || "");
   const [time, setTime] = useState(
