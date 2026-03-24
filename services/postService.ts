@@ -106,3 +106,22 @@ export const deletePost = async (postId: number): Promise<void> => {
     throw new Error(`Failed to delete post: ${res.status} ${errText}`);
   }
 };
+
+export const fetchAllPosts = async (): Promise<PostResponse[]> => {
+  const token = getAccessToken();
+  const res = await fetch(`${API_BASE_URL}/api/v1/posts`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Failed to fetch posts: ${res.status} ${errText}`);
+  }
+  const json = await res.json();
+  // assuming ApiResponse wrapper is used
+  return json.data;
+};
