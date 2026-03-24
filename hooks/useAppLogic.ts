@@ -17,6 +17,7 @@ import { fetchCurrentUser } from "../services/userService";
 import {
   createPost as apiCreatePost,
   updatePost as apiUpdatePost,
+  deletePost as apiDeletePost,
   PostRequest,
 } from "../services/postService";
 import {
@@ -192,16 +193,25 @@ export const useAppLogic = () => {
     setSelectedChatId(null);
   };
 
-  const handleDeletePost = (postId: number) => {
+  const handleDeletePost = async (postId: number) => {
     if (!window.confirm("정말로 이 모임을 삭제하시겠습니까?")) return;
-    setPosts(posts.filter((p) => p.id !== postId));
 
-    if (selectedPost?.id === postId) {
-      setSelectedPost(null);
-      setCurrentView(ViewState.HOME);
+    try {
+      await apiDeletePost(postId);
+
+      const nextPosts = posts.filter((p) => p.id !== postId);
+      setPosts(nextPosts);
+
+      if (selectedPost?.id === postId) {
+        setSelectedPost(null);
+        setCurrentView(ViewState.HOME);
+      }
+
+      alert("모임이 삭제되었습니다.");
+    } catch (err) {
+      console.error("deletePost error:", err);
+      alert("모임 삭제에 실패했습니다. 다시 시도해주세요.");
     }
-
-    alert("모임이 삭제되었습니다.");
   };
 
   const handleProfileSetupSubmit = (data: {

@@ -91,3 +91,18 @@ export const updatePost = async (
   // assuming ApiResponse wrapper is used
   return json.data;
 };
+
+export const deletePost = async (postId: number): Promise<void> => {
+  const token = getAccessToken();
+  const res = await fetch(`${API_BASE_URL}/api/v1/posts/${postId}`, {
+    method: "DELETE",
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Failed to delete post: ${res.status} ${errText}`);
+  }
+};
