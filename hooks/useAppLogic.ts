@@ -13,8 +13,10 @@ import {
   parseCallbackParams,
   saveAccessToken,
 } from "../services/authService";
+import { fetchCurrentUser } from "../services/userService";
 import {
   createPost as apiCreatePost,
+  updatePost as apiUpdatePost,
   PostRequest,
 } from "../services/postService";
 import {
@@ -48,6 +50,12 @@ export const useAppLogic = () => {
     setSelectedPost(post);
     setCurrentView(ViewState.POST_DETAIL);
   };
+
+  const goToEditPost = (post: Post) => {
+    //setSelectedPost(post);
+    setCurrentView(ViewState.EDIT_POST);
+  };
+
   const goToChatRoom = (chatId: number) => {
     setSelectedChatId(chatId);
     setCurrentView(ViewState.CHAT_ROOM);
@@ -66,7 +74,7 @@ export const useAppLogic = () => {
 
   const handleJoin = () => {
     if (!selectedPost) return;
-    if (selectedPost.applicants?.some((a) => a.id === currentUser.id)) {
+    if (selectedPost.applicants?.some((a) => a.userId === currentUser.userId)) {
       alert("이미 지원했습니다.");
       return;
     }
@@ -85,7 +93,9 @@ export const useAppLogic = () => {
       const updatedPost = {
         ...selectedPost,
         applicants:
-          selectedPost.applicants?.filter((a) => a.id !== currentUser.id) || [],
+          selectedPost.applicants?.filter(
+            (a) => a.userId !== currentUser.userId,
+          ) || [],
       };
       setPosts(posts.map((p) => (p.id === selectedPost.id ? updatedPost : p)));
       setSelectedPost(updatedPost);
@@ -99,31 +109,33 @@ export const useAppLogic = () => {
       alert("정원이 꽉 찼습니다.");
       return;
     }
-    const applicant = post.applicants?.find((u) => u.id === applicantId);
+    const applicant = post.applicants?.find((u) => u.userId === applicantId);
     if (!applicant) return;
 
     const updatedPost = {
       ...post,
       currentMembers: post.currentMembers + 1,
-      applicants: post.applicants?.filter((u) => u.id !== applicantId),
+      applicants: post.applicants?.filter((u) => u.userId !== applicantId),
     };
     setPosts(posts.map((p) => (p.id === postId ? updatedPost : p)));
     if (selectedPost && selectedPost.id === postId) {
       setSelectedPost(updatedPost);
     }
-    alert(`${applicant.name}님의 참여를 승인했습니다!`);
+    alert(`${applicant.nickname}님의 참여를 승인했습니다!`);
   };
 
   const handleReject = (postId: number, applicantId: number) => {
     const post = posts.find((p) => p.id === postId);
     if (!post) return;
-    const applicant = post.applicants?.find((u) => u.id === applicantId);
+    const applicant = post.applicants?.find((u) => u.userId === applicantId);
     if (!applicant) return;
 
-    if (window.confirm(`${applicant.name}님의 참여 신청을 거절하시겠습니까?`)) {
+    if (
+      window.confirm(`${applicant.nickname}님의 참여 신청을 거절하시겠습니까?`)
+    ) {
       const updatedPost = {
         ...post,
-        applicants: post.applicants?.filter((u) => u.id !== applicantId),
+        applicants: post.applicants?.filter((u) => u.userId !== applicantId),
       };
       setPosts(posts.map((p) => (p.id === postId ? updatedPost : p)));
       if (selectedPost && selectedPost.id === postId) {
@@ -136,9 +148,9 @@ export const useAppLogic = () => {
     if (!selectedPost) return;
     const newComment: Comment = {
       id: Date.now(), // comment Id 나중에 다시 number로 매치해야함
-      authorId: currentUser.id,
-      authorName: currentUser.name,
-      authorAvatar: currentUser.avatarUrl,
+      authorId: currentUser.userId,
+      authorName: currentUser.nickname,
+      authorAvatar: currentUser.profileUrl,
       text: text,
       timestamp: Date.now(),
     };
@@ -154,7 +166,7 @@ export const useAppLogic = () => {
     if (!selectedChatId) return;
     const newMessage: Message = {
       id: Date.now(), // string에서 이걸로 변경됨
-      senderId: currentUser.id,
+      senderId: currentUser.userId,
       text: text,
       timestamp: Date.now(),
     };
@@ -193,8 +205,8 @@ export const useAppLogic = () => {
     // 프로필 정보 업데이트 (User 상태 업데이트)
     setCurrentUser((prev) => ({
       ...prev,
-      name: data.nickname,
-      avatarUrl: data.avatarUrl,
+      nickname: data.nickname,
+      profileUrl: data.avatarUrl,
       introduction: data.introduction,
     }));
     setCurrentView(ViewState.HOME);
@@ -247,14 +259,22 @@ export const useAppLogic = () => {
     };
 
     try {
+      const token = getAccessToken();
+      if (!token) {
+        alert(
+          "로그인된 사용자만 모임을 개설할 수 있습니다. 소셜 로그인 후 다시 시도해주세요.",
+        );
+        return;
+      }
+
       const result = await apiCreatePost(request);
 
       // optimistic local update – still keep UX smooth until full sync
       const newPost: Post = {
         id: result.postId || Date.now(),
-        authorId: currentUser.id,
-        authorName: currentUser.name,
-        authorAvatar: currentUser.avatarUrl,
+        authorId: currentUser.userId,
+        authorName: currentUser.nickname,
+        authorAvatar: currentUser.profileUrl,
         title: request.title,
         description: request.content,
         category: request.category as any,
@@ -283,6 +303,55 @@ export const useAppLogic = () => {
     }
   };
 
+  const editPost = async (data: any) => {
+    if (!selectedPost) return;
+
+    const meetingType = data.meetingType ?? data.meetupType;
+    const request: PostRequest = {
+      title: data.title,
+      content: data.content || data.description,
+      category: data.category,
+      meetingType,
+      meetingTime: data.meetingTime ?? data.time,
+      maxMembers: data.maxMembers,
+      locationName:
+        meetingType === "ONLINE" ? null : (data.location ?? data.locationName),
+      imageUrls: data.imageUrls ?? data.images,
+    };
+
+    try {
+      // 1. 서버에 수정 API 요청
+      const result = await apiUpdatePost(selectedPost.id, request);
+
+      // 2. 프론트엔드 로컬 상태 업데이트
+      const updatedPost = {
+        ...selectedPost,
+        title: request.title,
+        description: request.content,
+        category: request.category as any,
+        meetingType: request.meetingType,
+        time: request.meetingTime,
+        maxMembers: request.maxMembers,
+        location: request.locationName || "",
+        images: request.imageUrls,
+        imageUrl:
+          request.imageUrls && request.imageUrls.length > 0
+            ? request.imageUrls[0]
+            : undefined,
+      };
+
+      setPosts(posts.map((p) => (p.id === selectedPost.id ? updatedPost : p)));
+      setSelectedPost(updatedPost);
+
+      // 3. 다시 상세 화면으로 이동
+      setCurrentView(ViewState.POST_DETAIL);
+      alert("모임이 수정되었습니다.");
+    } catch (err) {
+      console.error(err);
+      alert("모임 수정에 실패했습니다.");
+    }
+  };
+
   // OAuth2 콜백 처리 및 로그인 상태 확인
   const checkLoginStatus = useCallback(async () => {
     // 1. OAuth2 콜백 에러 처리
@@ -300,18 +369,16 @@ export const useAppLogic = () => {
       saveAccessToken(loginData.accessToken);
       cleanUpUrl();
 
-      setCurrentUser((prev) => ({
-        ...prev,
-        id: loginData.userId,
-      }));
-
-      // 신규 유저: 프로필 설정으로 이동
       if (loginData.isNewUser) {
         setCurrentView(ViewState.PROFILE_SETUP);
         return;
       }
 
-      // 기존 유저: 홈으로 이동
+      const userData = await fetchCurrentUser();
+      if (userData) {
+        setCurrentUser(userData);
+      }
+
       setCurrentView(ViewState.HOME);
       return;
     }
@@ -324,32 +391,11 @@ export const useAppLogic = () => {
     }
 
     try {
-      const response = await fetch("http://localhost:8080/auth", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${existingToken}`,
-        },
-        credentials: "include",
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        if (result.data) {
-          const userData = result.data;
-          setCurrentUser({
-            id: userData.id,
-            name: userData.name,
-            avatarUrl: userData.profileUrl || "/default_profile.png",
-            isSanggyeongJwi: true,
-            hometown: "지역 미설정",
-            introduction: "",
-            notificationEnabled: true,
-          });
-
-          if (currentView === ViewState.ONBOARDING) {
-            setCurrentView(ViewState.HOME);
-          }
+      const userData = await fetchCurrentUser();
+      if (userData) {
+        setCurrentUser(userData);
+        if (currentView === ViewState.ONBOARDING) {
+          setCurrentView(ViewState.HOME);
         }
       } else {
         console.log("Not authenticated (Token invalid or expired)");
@@ -382,6 +428,8 @@ export const useAppLogic = () => {
     handleSendMessage,
     handleLeaveChat,
     createPost,
+    goToEditPost,
+    editPost,
     // 프로필 설정
     goToProfileSetup,
     handleProfileSetupSubmit,
