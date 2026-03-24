@@ -55,6 +55,7 @@ export default function App() {
     checkLoginStatus, // Updated hook name
     goToEditPost,
     editPost,
+    handleDeletePost,
   } = useAppLogic();
 
   useEffect(() => {
@@ -71,7 +72,9 @@ export default function App() {
         return (
           <ProfileSetup
             initialNickname={
-              currentUser.nickname === "상경한꿈돌이" ? "" : currentUser.nickname
+              currentUser.nickname === "상경한꿈돌이"
+                ? ""
+                : currentUser.nickname
             }
             onComplete={handleProfileSetupSubmit}
           />
@@ -107,6 +110,7 @@ export default function App() {
             onReject={handleReject}
             onAddComment={handleAddComment}
             onEdit={goToEditPost}
+            onDelete={handleDeletePost}
           />
         ) : null;
       case ViewState.MAP:

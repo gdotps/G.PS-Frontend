@@ -192,6 +192,18 @@ export const useAppLogic = () => {
     setSelectedChatId(null);
   };
 
+  const handleDeletePost = (postId: number) => {
+    if (!window.confirm("정말로 이 모임을 삭제하시겠습니까?")) return;
+    setPosts(posts.filter((p) => p.id !== postId));
+
+    if (selectedPost?.id === postId) {
+      setSelectedPost(null);
+      setCurrentView(ViewState.HOME);
+    }
+
+    alert("모임이 삭제되었습니다.");
+  };
+
   const handleProfileSetupSubmit = (data: {
     nickname: string;
     avatarUrl: string;
@@ -428,6 +440,7 @@ export const useAppLogic = () => {
     handleSendMessage,
     handleLeaveChat,
     createPost,
+    handleDeletePost,
     goToEditPost,
     editPost,
     // 프로필 설정

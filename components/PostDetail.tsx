@@ -9,6 +9,7 @@ import {
   UserCheck,
   Send,
   Edit,
+  Trash2,
 } from "lucide-react";
 
 export const PostDetail: React.FC<{
@@ -22,8 +23,8 @@ export const PostDetail: React.FC<{
   onApprove: (postId: number, applicantId: number) => void;
   onReject: (postId: number, applicantId: number) => void;
   onAddComment: (text: string) => void;
-  //onEdit: (postId: number) => void;
-  onEdit: () => void; // 추가
+  onEdit: () => void;
+  onDelete: (postId: number) => void;
 }> = ({
   post,
   currentUser,
@@ -36,6 +37,7 @@ export const PostDetail: React.FC<{
   onReject,
   onAddComment,
   onEdit,
+  onDelete,
 }) => {
   const [commentText, setCommentText] = useState("");
 
@@ -116,14 +118,22 @@ export const PostDetail: React.FC<{
           </div>
 
           {isHost && (
-            <button
-              //onClick={() => onEdit(post.id)}
-              onClick={onEdit}
-              className="p-2 rounded-full border border-gray-200 hover:bg-gray-100 transition-colors"
-              aria-label="게시물 수정"
-            >
-              <Edit size={16} className="text-gray-500" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={onEdit}
+                className="p-2 rounded-full border border-gray-200 hover:bg-gray-100 transition-colors"
+                aria-label="게시물 수정"
+              >
+                <Edit size={16} className="text-gray-500" />
+              </button>
+              <button
+                onClick={() => onDelete(post.id)}
+                className="p-2 rounded-full border border-gray-200 hover:bg-gray-100 transition-colors"
+                aria-label="게시물 삭제"
+              >
+                <Trash2 size={16} className="text-red-500" />
+              </button>
+            </div>
           )}
         </div>
 
