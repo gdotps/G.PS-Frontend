@@ -6,7 +6,7 @@ import { ChevronLeft, Camera, X } from "lucide-react";
 
 export const CreatePostView: React.FC<{
   onCancel: () => void;
-  onCreate: (post: any) => void;
+  onCreate: (post: any) => void | Promise<void>;
 }> = ({ onCancel, onCreate }) => {
   const [title, setTitle] = useState("");
   const [date, setDate] = useState("");
@@ -14,6 +14,7 @@ export const CreatePostView: React.FC<{
   const [location, setLocation] = useState("");
   const [description, setDescription] = useState("");
   const [meetupType, setMeetupType] = useState<"OFFLINE" | "ONLINE">("OFFLINE");
+  const [maxMembers, setMaxMembers] = useState<number>(2);
   const [images, setImages] = useState<string[]>([]);
   const [showAddressSearch, setShowAddressSearch] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -21,7 +22,7 @@ export const CreatePostView: React.FC<{
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const fileArray = Array.from(e.target.files);
+      const fileArray = Array.from(e.target.files) as File[];
       const fileReaders = fileArray.map((file) => {
         return new Promise<string>((resolve) => {
           const reader = new FileReader();
@@ -43,7 +44,7 @@ export const CreatePostView: React.FC<{
   const handleTypeChange = (type: "OFFLINE" | "ONLINE") => {
     setMeetupType(type);
     if (type === "ONLINE") {
-      setLocation("온라인");
+      setLocation("");
     } else {
       setLocation("");
     }
@@ -53,23 +54,49 @@ export const CreatePostView: React.FC<{
     setTag(type);
   };
 
-  const handleSubmit = () => {
-    if (!title || !date || !time || !location || !description) {
+  const handleSubmit = async () => {
+    if (!title || !date || !time || !description) {
       alert("모든 정보를 입력해주세요.");
       return;
     }
 
-    const displayTime = `${date} ${time}`;
+    if (meetupType === "OFFLINE" && !location) {
+      alert("오프라인 모임의 장소를 입력해주세요.");
+      return;
+    }
 
-    onCreate({
-      title,
-      time: displayTime,
-      location,
-      description,
-      images: images,
-      meetupType,
-      category: tag,
-    });
+    if (maxMembers < 2) {
+      alert("최소 2명 이상 설정해주세요.");
+      return;
+    }
+
+    if (images.length > 3) {
+      alert("사진은 최대 3장까지 업로드 가능합니다.");
+      return;
+    }
+
+    // backend expects yyyy-MM-dd HH:mm:ss
+    const meetingTime = `${date} ${time}:00`;
+
+    try {
+      setSubmitting(true);
+      await onCreate({
+        title,
+        content: description,
+        meetingTime,
+        maxMembers,
+        locationName: meetupType === "ONLINE" ? null : location,
+        images: images,
+        meetingType: meetupType,
+        category: tag,
+      });
+      // the parent hook will navigate back to home upon success
+    } catch (e) {
+      console.error(e);
+      alert("모임 개설 중 오류가 발생했습니다.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (showAddressSearch) {
@@ -200,6 +227,30 @@ export const CreatePostView: React.FC<{
           </div>
         </div>
 
+        {/* Max Members */}
+        <div>
+          <label className="block text-sm font-bold text-gray-900 mb-2">
+            정원
+          </label>
+          <div className="flex items-center space-x-4">
+            <button
+              type="button"
+              onClick={() => setMaxMembers((m) => Math.max(2, m - 1))}
+              className="w-10 h-10 flex items-center justify-center bg-gray-200 rounded-full hover:bg-gray-300"
+            >
+              -
+            </button>
+            <span className="text-lg font-bold">{maxMembers}</span>
+            <button
+              type="button"
+              onClick={() => setMaxMembers((m) => m + 1)}
+              className="w-10 h-10 flex items-center justify-center bg-gray-200 rounded-full hover:bg-gray-300"
+            >
+              +
+            </button>
+          </div>
+        </div>
+
         {/* Time */}
         <div className="flex gap-3">
           <div className="flex-1">
@@ -272,9 +323,10 @@ export const CreatePostView: React.FC<{
 
         <button
           onClick={handleSubmit}
-          className="w-full bg-gray-900 text-white font-bold py-4 rounded-xl shadow-lg shadow-gray-200 hover:bg-gray-800 mt-4"
+          disabled={submitting}
+          className="w-full bg-gray-900 text-white font-bold py-4 rounded-xl shadow-lg shadow-gray-200 hover:bg-gray-800 mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          모임 개설하기
+          {submitting ? "등록 중..." : "모임 개설하기"}
         </button>
       </div>
     </div>
