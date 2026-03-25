@@ -1,4 +1,5 @@
 import React, { useState, useRef } from "react";
+import { Category } from "../types";
 import { Header } from "./Header";
 import { AddressSearchModal } from "./AddressSearchModal";
 import { ChevronLeft, Camera, X } from "lucide-react";
@@ -16,9 +17,7 @@ export const CreatePostView: React.FC<{
   const [images, setImages] = useState<string[]>([]);
   const [showAddressSearch, setShowAddressSearch] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [tag, setTag] = useState<
-    "FOOD" | "STUDY" | "EXERCISE" | "HOBBY" | "ETC"
-  >("FOOD");
+  const [tag, setTag] = useState<Category>("FOOD");
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -50,9 +49,7 @@ export const CreatePostView: React.FC<{
     }
   };
 
-  const handleTagChange = (
-    type: "FOOD" | "EXERCISE" | "STUDY" | "HOBBY" | "ETC",
-  ) => {
+  const handleTagChange = (type: Category) => {
     setTag(type);
   };
 
@@ -182,38 +179,24 @@ export const CreatePostView: React.FC<{
           <label className="block text-sm font-bold text-gray-900 mb-2">
             모임 카테고리
           </label>
-          <div className="flex gap-2">
-            <button
-              onClick={() => handleTagChange("FOOD")}
-              className={`flex-1 py-3 rounded-xl font-bold transition-all border ${tag === "FOOD" ? "bg-gray-900 text-white border-gray-900 shadow-md" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}
-            >
-              맛집
-            </button>
-            <button
-              onClick={() => handleTagChange("EXERCISE")}
-              className={`flex-1 py-3 rounded-xl font-bold transition-all border ${tag === "EXERCISE" ? "bg-gray-900 text-white border-gray-900 shadow-md" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}
-            >
-              운동
-            </button>
-
-            <button
-              onClick={() => handleTagChange("STUDY")}
-              className={`flex-1 py-3 rounded-xl font-bold transition-all border ${tag === "STUDY" ? "bg-gray-900 text-white border-gray-900 shadow-md" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}
-            >
-              스터디
-            </button>
-            <button
-              onClick={() => handleTagChange("HOBBY")}
-              className={`flex-1 py-3 rounded-xl font-bold transition-all border ${tag === "HOBBY" ? "bg-gray-900 text-white border-gray-900 shadow-md" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}
-            >
-              취미
-            </button>
-            <button
-              onClick={() => handleTagChange("ETC")}
-              className={`flex-1 py-3 rounded-xl font-bold transition-all border ${tag === "ETC" ? "bg-gray-900 text-white border-gray-900 shadow-md" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}
-            >
-              기타
-            </button>
+          <div className="grid grid-cols-4 gap-2">
+            {([
+              { id: "SPORTS", label: "스포츠" },
+              { id: "STUDY", label: "스터디" },
+              { id: "FOOD", label: "맛집" },
+              { id: "HOBBY", label: "취미" },
+              { id: "GAME", label: "게임" },
+              { id: "MUSIC", label: "음악" },
+              { id: "ETC", label: "기타" },
+            ] as { id: Category; label: string }[]).map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => handleTagChange(cat.id)}
+                className={`py-3 rounded-xl font-bold transition-all border ${tag === cat.id ? "bg-gray-900 text-white border-gray-900 shadow-md" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}
+              >
+                {cat.label}
+              </button>
+            ))}
           </div>
         </div>
 

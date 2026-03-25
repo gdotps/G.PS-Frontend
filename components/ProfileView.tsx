@@ -8,6 +8,7 @@ interface ProfileViewProps {
   bookmarkCount: number;
   onViewBookmarks: () => void;
   onViewApplicants: () => void;
+  onViewMyApplications: () => void;
   onEditProfile: () => void;
   onLogout: () => void;
   onDeleteAccount: () => void;
@@ -19,6 +20,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   bookmarkCount,
   onViewBookmarks,
   onViewApplicants,
+  onViewMyApplications,
   onEditProfile,
   onLogout,
   onDeleteAccount,
@@ -32,7 +34,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       {/* 닉네임 + 설정 아이콘 컨테이너 */}
       <div className="flex justify-center mb-2">
         <div className="relative inline-block">
-          <h2 className="text-2xl font-bold px-2">{user.name}</h2>
+          <h2 className="text-2xl font-bold px-2">{user.nickname}</h2>
           <button
             onClick={onEditProfile}
             className="absolute left-full top-1/2 -translate-y-1/2 ml-1 text-gray-400 hover:text-gray-600 transition-colors bg-gray-100 p-1.5 rounded-full"
@@ -68,9 +70,14 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
       <div className="bg-white p-4 rounded-2xl shadow-sm text-left mb-4 space-y-4">
         <h3 className="font-bold mb-2">나의 활동</h3>
-        <div className="flex justify-between text-sm py-2 border-b border-gray-50">
+        <div
+          className="flex justify-between text-sm py-2 cursor-pointer hover:bg-gray-50 rounded-lg transition-colors px-1 -mx-1 border-b border-gray-50"
+          onClick={onViewMyApplications}
+        >
           <span>참여한 모임</span>
-          <span className="font-bold text-gray-900">12회</span>
+          <div className="flex items-center gap-1 font-bold text-gray-900">
+            <ChevronRight size={14} />
+          </div>
         </div>
         <div
           className="flex justify-between text-sm py-2 cursor-pointer hover:bg-gray-50 rounded-lg transition-colors px-1 -mx-1"

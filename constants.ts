@@ -4,7 +4,7 @@ export const DEFAULT_AVATAR = "/default_profile.png";
 
 export const CURRENT_USER: User = {
   id: 1,
-  name: "상경한꿈돌이",
+  nickname: "상경한꿈돌이",
   avatarUrl: "",
   isSanggyeongJwi: true,
   hometown: "부산",
@@ -20,7 +20,7 @@ export const MOCK_POSTS: Post[] = [
     title: "오늘 밤 한강 5km 뛰실 분? 🏃‍♂️",
     description:
       "퇴근하고 여의도 공원에서 가볍게 뛰고 스트레스 날리실 분 구해요! 초보자 환영, 페이스는 천천히 맞춥니다.",
-    category: "EXERCISE",
+    category: "SPORTS",
     location: "여의도 공원",
     distance: "400m",
     lat: 37.5283,

@@ -76,11 +76,11 @@ export const ChatRoomView: React.FC<{
                           {participantsInfo.map(user => (
                              <div key={user.id} className="flex items-center gap-3">
                                 <div className="relative">
-                                    <img src={user.avatarUrl} alt={user.name} className="w-10 h-10 rounded-full bg-gray-200 object-cover border border-gray-100"/>
+                                    <img src={user.avatarUrl} alt={user.nickname} className="w-10 h-10 rounded-full bg-gray-200 object-cover border border-gray-100"/>
                                     {user.id === CURRENT_USER.id && <div className="absolute -bottom-1 -right-1 bg-gray-900 text-white text-[9px] px-1.5 py-0.5 rounded-full border border-white font-bold">나</div>}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <p className="font-bold text-sm text-gray-900 truncate">{user.name}</p>
+                                    <p className="font-bold text-sm text-gray-900 truncate">{user.nickname}</p>
                                     <p className="text-xs text-gray-500 truncate">{user.hometown ? `${user.hometown} 출신` : '참여자'}</p>
                                 </div>
                              </div>
@@ -96,7 +96,7 @@ export const ChatRoomView: React.FC<{
                     const isMe = msg.senderId === CURRENT_USER.id;
                     // 메시지 보낸 사람 정보 찾기
                     const sender = participantsInfo.find(u => u.id === msg.senderId);
-                    const senderName = sender ? sender.name : '알 수 없는 사용자';
+                    const senderName = sender ? sender.nickname : '알 수 없는 사용자';
 
                     return (
                         <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>

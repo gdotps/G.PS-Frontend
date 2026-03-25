@@ -13,11 +13,13 @@ export const HomeView: React.FC<{
 
   const CATEGORIES = [
     { id: 'ALL', label: '전체' },
-    { id: 'FOOD', label: '🍽 맛집' },
-    { id: 'EXERCISE', label: '🏃 운동' },
+    { id: 'SPORTS', label: '⚽ 스포츠' },
     { id: 'STUDY', label: '📚 스터디' },
+    { id: 'FOOD', label: '🍽 맛집' },
     { id: 'HOBBY', label: '🎨 취미' },
-    { id: 'OTHER', label: '🎸 기타' },
+    { id: 'GAME', label: '🎮 게임' },
+    { id: 'MUSIC', label: '🎸 음악' },
+    { id: 'ETC', label: '📦 기타' },
   ];
 
   const filteredPosts = activeCategory === 'ALL'

@@ -1,10 +1,9 @@
 // 인증 관련 서비스 (카카오 소셜 로그인)
 
-const API_BASE_URL = "http://localhost:8080";
+export const API_BASE_URL = "http://localhost:8080";
 
 // 로그인 응답 타입
 export interface LoginResponse {
-    accessToken: string;
     isNewUser: boolean;
     userId: number;
 }
@@ -21,21 +20,19 @@ export const getGoogleLoginUrl = (): string => {
 };
 
 // URL 쿼리 파라미터에서 로그인 응답 데이터 추출
-// 백엔드 전달 파라미터: accessToken, userId, isNewUser
-// refreshToken은 HttpOnly 쿠키로 자동 저장됨
+// 백엔드 전달 파라미터: userId, isNewUser
+// accessToken, refreshToken은 HttpOnly 쿠키로 자동 저장됨
 export const parseCallbackParams = (): LoginResponse | null => {
     const params = new URLSearchParams(window.location.search);
 
-    const accessToken = params.get("accessToken");
     const userId = params.get("userId");
     const isNewUser = params.get("isNewUser");
 
-    if (!accessToken || !userId || isNewUser === null) {
+    if (!userId || isNewUser === null) {
         return null;
     }
 
     return {
-        accessToken,
         isNewUser: isNewUser === "true",
         userId: Number(userId),
     };
@@ -47,23 +44,45 @@ export const parseCallbackError = (): string | null => {
     return params.get("error");
 };
 
-// AccessToken 저장 (localStorage)
-// RefreshToken은 백엔드가 HttpOnly 쿠키로 관리
-export const saveAccessToken = (accessToken: string): void => {
-    localStorage.setItem("accessToken", accessToken);
-};
-
-// 액세스 토큰 조회
-export const getAccessToken = (): string | null => {
-    return localStorage.getItem("accessToken");
-};
-
-// 토큰 삭제 (로그아웃 시)
-export const clearTokens = (): void => {
-    localStorage.removeItem("accessToken");
-};
-
 // URL 파라미터 정리 (토큰 정보 노출 방지)
 export const cleanUpUrl = (): void => {
     window.history.replaceState({}, document.title, window.location.pathname);
+};
+
+// ────────────────────────────────────────────────────────────────────────────
+// 로그아웃
+// ────────────────────────────────────────────────────────────────────────────
+
+// POST /api/v1/users/logout
+// accessToken + refreshToken은 HttpOnly 쿠키로 자동 전송
+// 성공 시 백엔드가 쿠키 만료(MaxAge=0) 처리
+export const logout = async (): Promise<boolean> => {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/v1/users/logout`, {
+            method: "POST",
+            credentials: "include",
+        });
+        return response.ok;
+    } catch {
+        return false;
+    }
+};
+
+// ────────────────────────────────────────────────────────────────────────────
+// AccessToken 재발급
+// ────────────────────────────────────────────────────────────────────────────
+
+// POST /api/v1/auth/refresh
+// refreshToken은 HttpOnly 쿠키로 자동 전송되므로 body 불필요
+// 성공 시 백엔드가 새 accessToken + refreshToken을 Set-Cookie로 갱신
+export const refreshAccessToken = async (): Promise<boolean> => {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
+            method: "POST",
+            credentials: "include",
+        });
+        return response.ok;
+    } catch {
+        return false;
+    }
 };

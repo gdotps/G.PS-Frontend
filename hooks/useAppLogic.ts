@@ -7,12 +7,12 @@ import {
 } from "../constants";
 import {
   cleanUpUrl,
-  clearTokens,
-  getAccessToken,
+  logout,
   parseCallbackError,
   parseCallbackParams,
-  saveAccessToken,
+  refreshAccessToken,
 } from "../services/authService";
+import { fetchMyProfile, updateMyProfile } from "../services/userService";
 import {
   ChatRoom,
   Comment,
@@ -50,6 +50,7 @@ export const useAppLogic = () => {
   };
   const goToProfileEdit = () => setCurrentView(ViewState.PROFILE_EDIT);
   const goToProfile = () => setCurrentView(ViewState.PROFILE);
+  const goToMyApplications = () => setCurrentView(ViewState.MY_APPLICATIONS);
 
   // 액션
   const toggleBookmark = (postId: number) => {
@@ -107,7 +108,7 @@ export const useAppLogic = () => {
     if (selectedPost && selectedPost.id === postId) {
       setSelectedPost(updatedPost);
     }
-    alert(`${applicant.name}님의 참여를 승인했습니다!`);
+    alert(`${applicant.nickname}님의 참여를 승인했습니다!`);
   };
 
   const handleReject = (postId: number, applicantId: number) => {
@@ -116,7 +117,7 @@ export const useAppLogic = () => {
     const applicant = post.applicants?.find((u) => u.id === applicantId);
     if (!applicant) return;
 
-    if (window.confirm(`${applicant.name}님의 참여 신청을 거절하시겠습니까?`)) {
+    if (window.confirm(`${applicant.nickname}님의 참여 신청을 거절하시겠습니까?`)) {
       const updatedPost = {
         ...post,
         applicants: post.applicants?.filter((u) => u.id !== applicantId),
@@ -133,7 +134,7 @@ export const useAppLogic = () => {
     const newComment: Comment = {
       id: Date.now(), // comment Id 나중에 다시 number로 매치해야함
       authorId: currentUser.id,
-      authorName: currentUser.name,
+      authorName: currentUser.nickname,
       authorAvatar: currentUser.avatarUrl,
       text: text,
       timestamp: Date.now(),
@@ -176,34 +177,54 @@ export const useAppLogic = () => {
     setSelectedChatId(null);
   };
 
-  const handleProfileSetupSubmit = (data: {
+  const handleProfileSetupSubmit = async (data: {
     nickname: string;
     avatarUrl: string;
     introduction: string;
   }) => {
-    // 참고: 실제 앱에서는 사용자 프로필 업데이트 API 호출이 필요합니다.
-    // 여기서는 프로토타입 시뮬레이션을 위해 로컬 상태만 업데이트합니다.
-    // 전역 상태 관리(Context/Redux)가 있다면 액션을 디스패치해야 합니다.
-    console.log(`프로필 설정 완료: ${data.nickname}`);
+    const result = await updateMyProfile({
+      nickname: data.nickname,
+      introduction: data.introduction || undefined,
+    });
 
-    // 프로필 정보 업데이트 (User 상태 업데이트)
+    if (!result.success) {
+      alert("프로필 등록에 실패했습니다.");
+      return;
+    }
+
     setCurrentUser((prev) => ({
       ...prev,
-      name: data.nickname,
-      avatarUrl: data.avatarUrl,
-      introduction: data.introduction,
+      nickname: result.data.nickname,
+      avatarUrl: data.avatarUrl, // 이미지는 별도 API이므로 로컬 값 유지
+      introduction: result.data.introduction || "",
     }));
     setCurrentView(ViewState.HOME);
   };
 
-  const handleProfileUpdate = (updatedUser: User) => {
-    setCurrentUser(updatedUser);
+  const handleProfileUpdate = async (updatedUser: User) => {
+    const result = await updateMyProfile({
+      nickname: updatedUser.nickname,
+      introduction: updatedUser.introduction || undefined,
+    });
+
+    if (!result.success) {
+      alert("프로필 수정에 실패했습니다.");
+      return;
+    }
+
+    // API 응답으로 상태 반영 (nickname, introduction은 서버 응답 기준)
+    setCurrentUser((prev) => ({
+      ...prev,
+      nickname: result.data.nickname,
+      introduction: result.data.introduction || "",
+      avatarUrl: updatedUser.avatarUrl, // 이미지는 별도 API이므로 로컬 값 유지
+    }));
     setCurrentView(ViewState.PROFILE);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (window.confirm("로그아웃 하시겠습니까?")) {
-      clearTokens();
+      await logout(); // 서버 RefreshToken 삭제 + 쿠키 만료 처리
       setCurrentUser(CURRENT_USER);
       setCurrentView(ViewState.ONBOARDING);
     }
@@ -234,7 +255,7 @@ export const useAppLogic = () => {
     const newPost: Post = {
       id: Date.now(),
       authorId: currentUser.id,
-      authorName: currentUser.name,
+      authorName: currentUser.nickname,
       authorAvatar: currentUser.avatarUrl,
       title: data.title,
       description: data.description,
@@ -258,6 +279,28 @@ export const useAppLogic = () => {
     setCurrentView(ViewState.HOME);
   };
 
+  // 사용자 정보 응답으로 상태 업데이트하는 헬퍼
+  const applyUserData = (userData: {
+    id: number;
+    nickname: string;
+    profileUrl: string | null;
+    introduction: string | null;
+    notificationEnabled: boolean;
+  }) => {
+    setCurrentUser({
+      id: userData.id,
+      nickname: userData.nickname,
+      avatarUrl: userData.profileUrl || "/default_profile.png",
+      isSanggyeongJwi: true,
+      hometown: "지역 미설정",
+      introduction: userData.introduction || "",
+      notificationEnabled: userData.notificationEnabled,
+    });
+    if (currentView === ViewState.ONBOARDING) {
+      setCurrentView(ViewState.HOME);
+    }
+  };
+
   // OAuth2 콜백 처리 및 로그인 상태 확인
   const checkLoginStatus = useCallback(async () => {
     // 1. OAuth2 콜백 에러 처리
@@ -269,10 +312,10 @@ export const useAppLogic = () => {
       return;
     }
 
-    // 2. OAuth2 콜백 성공 처리 (URL에 토큰 파라미터가 있는 경우)
+    // 2. OAuth2 콜백 성공 처리 (URL에 userId, isNewUser 파라미터가 있는 경우)
+    // parseCallbackParams 내부에서 URL의 refreshToken도 함께 저장됨
     const loginData = parseCallbackParams();
     if (loginData) {
-      saveAccessToken(loginData.accessToken);
       cleanUpUrl();
 
       setCurrentUser((prev) => ({
@@ -291,45 +334,34 @@ export const useAppLogic = () => {
       return;
     }
 
-    // 3. 기존 토큰 기반 로그인 상태 확인
-    const existingToken = getAccessToken();
-    if (!existingToken) {
-      console.log("Not authenticated (No token found)");
-      return;
-    }
-
+    // 3. 쿠키 기반 로그인 상태 확인 (GET /api/v1/users/me, accessToken HttpOnly 쿠키 자동 전송)
     try {
-      const response = await fetch("http://localhost:8080/auth", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${existingToken}`,
-        },
-        credentials: "include",
-      });
+      const profileResult = await fetchMyProfile();
 
-      if (response.ok) {
-        const result = await response.json();
-        if (result.data) {
-          const userData = result.data;
-          setCurrentUser({
-            id: userData.id,
-            name: userData.name,
-            avatarUrl: userData.profileUrl || "/default_profile.png",
-            isSanggyeongJwi: true,
-            hometown: "지역 미설정",
-            introduction: "",
-            notificationEnabled: true,
-          });
-
-          if (currentView === ViewState.ONBOARDING) {
-            setCurrentView(ViewState.HOME);
-          }
-        }
-      } else {
-        console.log("Not authenticated (Token invalid or expired)");
-        clearTokens();
+      if (profileResult.status === "success") {
+        applyUserData(profileResult.data);
+        return;
       }
+
+      // 4. 401: accessToken 만료 → refreshToken으로 재발급 시도
+      if (profileResult.status === "unauthorized") {
+        const refreshed = await refreshAccessToken();
+        if (!refreshed) {
+          console.log("RefreshToken 만료 또는 없음 → 재로그인 필요");
+          return;
+        }
+
+        // 재발급 성공 → GET /api/v1/users/me 재시도
+        const retryResult = await fetchMyProfile();
+        if (retryResult.status === "success") {
+          applyUserData(retryResult.data);
+        } else {
+          console.log("토큰 재발급 후에도 인증 실패");
+        }
+        return;
+      }
+
+      console.log("프로필 조회 실패 (status:", profileResult.status, ")");
     } catch (error) {
       console.error("Failed to check login status:", error);
     }
@@ -364,6 +396,7 @@ export const useAppLogic = () => {
     currentUser,
     goToProfileEdit,
     goToProfile,
+    goToMyApplications,
     handleProfileUpdate,
     handleLogout,
     handleDeleteAccount,

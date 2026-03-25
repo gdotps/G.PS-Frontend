@@ -12,11 +12,27 @@ export enum ViewState {
   NOTIFICATIONS = "NOTIFICATIONS",
   BOOKMARKS = "BOOKMARKS",
   APPLICANTS = "APPLICANTS",
+  MY_APPLICATIONS = "MY_APPLICATIONS",
+}
+
+export type Category = "SPORTS" | "STUDY" | "FOOD" | "HOBBY" | "GAME" | "MUSIC" | "ETC";
+
+export type ApplicationStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+export interface MyApplication {
+  applicationId: number;
+  postId: number;
+  title: string;
+  category: Category;
+  status: ApplicationStatus;
+  meetingTime: string | null;
+  locationName: string | null;
+  postImageUrl: string | null;
 }
 
 export interface User {
   id: number;
-  name: string;
+  nickname: string;
   avatarUrl: string;
   isSanggyeongJwi: boolean;
   hometown?: string;
@@ -40,7 +56,7 @@ export interface Post {
   authorAvatar: string;
   title: string;
   description: string;
-  category: "FOOD" | "HOBBY" | "STUDY" | "EXERCISE" | "ETC";
+  category: Category;
   location: string;
   distance: string;
   lat?: number;

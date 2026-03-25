@@ -10,7 +10,7 @@ interface ProfileEditProps {
 }
 
 export const ProfileEdit: React.FC<ProfileEditProps> = ({ user, onSave, onCancel }) => {
-    const [name, setName] = useState(user.name);
+    const [nickname, setNickname] = useState(user.nickname);
     const [hometown, setHometown] = useState(user.hometown || '');
     const [introduction, setIntroduction] = useState(user.introduction || '');
     const [avatarUrl, setAvatarUrl] = useState(user.avatarUrl || DEFAULT_AVATAR);
@@ -34,8 +34,8 @@ export const ProfileEdit: React.FC<ProfileEditProps> = ({ user, onSave, onCancel
 
     const validate = () => {
         const newErrors: { [key: string]: string } = {};
-        if (name.trim().length === 0) newErrors.name = '닉네임을 입력해주세요.';
-        if (name.trim().length > 10) newErrors.name = '닉네임은 10자 이내여야 합니다.';
+        if (nickname.trim().length === 0) newErrors.nickname = '닉네임을 입력해주세요.';
+        if (nickname.trim().length > 10) newErrors.nickname = '닉네임은 10자 이내여야 합니다.';
         if (introduction.length > 50) newErrors.introduction = '자기소개는 50자 이내여야 합니다.';
 
         setErrors(newErrors);
@@ -48,7 +48,7 @@ export const ProfileEdit: React.FC<ProfileEditProps> = ({ user, onSave, onCancel
 
         onSave({
             ...user,
-            name: name.trim(),
+            nickname: nickname.trim(),
             hometown: hometown.trim() || undefined,
             introduction: introduction.trim() || undefined,
             avatarUrl: avatarUrl
@@ -101,12 +101,12 @@ export const ProfileEdit: React.FC<ProfileEditProps> = ({ user, onSave, onCancel
                         <label className="block text-sm font-bold text-gray-700 mb-1">닉네임</label>
                         <input
                             type="text"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            className={`w-full p-3 bg-gray-50 rounded-xl border-2 focus:outline-none focus:bg-white transition-colors ${errors.name ? 'border-red-400 focus:border-red-500' : 'border-transparent focus:border-gps-400'}`}
+                            value={nickname}
+                            onChange={(e) => setNickname(e.target.value)}
+                            className={`w-full p-3 bg-gray-50 rounded-xl border-2 focus:outline-none focus:bg-white transition-colors ${errors.nickname ? 'border-red-400 focus:border-red-500' : 'border-transparent focus:border-gps-400'}`}
                             placeholder="닉네임 입력"
                         />
-                        {errors.name && <p className="text-red-500 text-xs mt-1 ml-1">{errors.name}</p>}
+                        {errors.nickname && <p className="text-red-500 text-xs mt-1 ml-1">{errors.nickname}</p>}
                     </div>
                     <div>
                         <label className="block text-sm font-bold text-gray-700 mb-1">

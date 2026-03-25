@@ -106,9 +106,9 @@ export const PostDetail: React.FC<{
                 <div className="space-y-3">
                     {post.applicants.map((applicant) => (
                         <div key={applicant.id} className="flex items-center gap-3 bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
-                            <img src={applicant.avatarUrl} alt={applicant.name} className="w-10 h-10 rounded-full bg-gray-200 object-cover" />
+                            <img src={applicant.avatarUrl} alt={applicant.nickname} className="w-10 h-10 rounded-full bg-gray-200 object-cover" />
                             <div className="flex-1">
-                                <p className="text-sm font-bold text-gray-900">{applicant.name}</p>
+                                <p className="text-sm font-bold text-gray-900">{applicant.nickname}</p>
                                 <p className="text-xs text-gray-500">{applicant.hometown} ➔ 서울</p>
                             </div>
                             <div className="flex gap-2">

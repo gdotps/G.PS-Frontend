@@ -6,6 +6,7 @@ import { ViewState } from './types';
 
 // Components
 import { ApplicantListView } from './components/ApplicantListView';
+import { MyApplicationsView } from './components/MyApplicationsView';
 import { BookmarksView } from './components/BookmarksView';
 import { ChatList } from './components/ChatList';
 import { ChatRoomView } from './components/ChatRoomView';
@@ -35,7 +36,7 @@ export default function App() {
     goToProfileSetup, handleProfileSetupSubmit,
     // Profile Management
     currentUser,
-    goToProfileEdit, goToProfile,
+    goToProfileEdit, goToProfile, goToMyApplications,
     handleProfileUpdate, handleLogout, handleDeleteAccount,
     toggleNotification,
     checkLoginStatus // Updated hook name
@@ -54,7 +55,7 @@ export default function App() {
       case ViewState.PROFILE_SETUP:
         return (
           <ProfileSetup
-            initialNickname={currentUser.name === '상경한꿈돌이' ? '' : currentUser.name}
+            initialNickname={currentUser.nickname === '상경한꿈돌이' ? '' : currentUser.nickname}
             onComplete={handleProfileSetupSubmit}
           />
         );
@@ -113,6 +114,7 @@ export default function App() {
             bookmarkCount={bookmarkedIds.length}
             onViewBookmarks={() => setCurrentView(ViewState.BOOKMARKS)}
             onViewApplicants={() => setCurrentView(ViewState.APPLICANTS)}
+            onViewMyApplications={goToMyApplications}
             onEditProfile={goToProfileEdit}
             onLogout={handleLogout}
             onDeleteAccount={handleDeleteAccount}
@@ -136,6 +138,12 @@ export default function App() {
             posts={posts}
             onBack={() => setCurrentView(ViewState.PROFILE)}
             onApprove={handleApprove}
+          />
+        );
+      case ViewState.MY_APPLICATIONS:
+        return (
+          <MyApplicationsView
+            onBack={() => setCurrentView(ViewState.PROFILE)}
           />
         );
       default:

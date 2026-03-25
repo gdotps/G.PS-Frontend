@@ -64,12 +64,12 @@ export const ApplicantListView: React.FC<{
                       >
                         <img
                           src={user.avatarUrl}
-                          alt={user.name}
+                          alt={user.nickname}
                           className="w-10 h-10 rounded-full bg-gray-200 object-cover"
                         />
                         <div className="flex-1">
                           <p className="text-sm font-bold text-gray-900">
-                            {user.name}
+                            {user.nickname}
                           </p>
                           <p className="text-xs text-gray-500">
                             {user.hometown} ➔ 서울
