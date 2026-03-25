@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Header } from "./Header";
 import { AddressSearchModal } from "./AddressSearchModal";
 import { ChevronLeft, Camera, X } from "lucide-react";
@@ -6,21 +6,48 @@ import { ChevronLeft, Camera, X } from "lucide-react";
 export const CreatePostView: React.FC<{
   onCancel: () => void;
   onCreate: (post: any) => void | Promise<void>;
-}> = ({ onCancel, onCreate }) => {
-  const [title, setTitle] = useState("");
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
-  const [location, setLocation] = useState("");
-  const [description, setDescription] = useState("");
-  const [meetupType, setMeetupType] = useState<"OFFLINE" | "ONLINE">("OFFLINE");
-  const [maxMembers, setMaxMembers] = useState<number>(2);
-  const [images, setImages] = useState<string[]>([]);
+  initialPost?: any;
+}> = ({ onCancel, onCreate, initialPost }) => {
   const [showAddressSearch, setShowAddressSearch] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [tag, setTag] = useState<
-    "SPORTS" | "STUDY" | "FOOD" | "HOBBY" | "GAME" | "MUSIC" | "ETC"
-  >("FOOD");
+  const [title, setTitle] = useState(initialPost?.title || "");
+  const [date, setDate] = useState(initialPost?.time?.split(" ")[0] || "");
+  const [time, setTime] = useState(
+    initialPost?.time?.split(" ")[1]?.substring(0, 5) || "",
+  );
+  const [location, setLocation] = useState(initialPost?.location || "");
+  const [description, setDescription] = useState(
+    initialPost?.description || "",
+  );
+  const [meetupType, setMeetupType] = useState<"OFFLINE" | "ONLINE">(
+    initialPost?.meetingType || "OFFLINE",
+  );
+  const [maxMembers, setMaxMembers] = useState<number>(
+    initialPost?.maxMembers || 2,
+  );
+  const [images, setImages] = useState<string[]>(initialPost?.images || []);
+  const [tag, setTag] = useState<any>(initialPost?.category || "FOOD");
   const [submitting, setSubmitting] = useState(false);
+
+  // Load editing post data
+  useEffect(() => {
+    if (initialPost) {
+      setTitle(initialPost.title || "");
+      setDescription(initialPost.description || "");
+      setMeetupType(initialPost.meetingType || "OFFLINE");
+      setMaxMembers(initialPost.maxMembers || 2);
+      setLocation(initialPost.location || "");
+      setImages(initialPost.images || []);
+      setTag(initialPost.category || "FOOD");
+
+      // Parse time
+      if (initialPost.time) {
+        const [datePart, timePart] = initialPost.time.split(" ");
+        setDate(datePart || "");
+        setTime(timePart ? timePart.substring(0, 5) : "");
+      }
+    }
+  }, [initialPost]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -85,6 +112,7 @@ export const CreatePostView: React.FC<{
     try {
       setSubmitting(true);
       await onCreate({
+        id: initialPost?.id, // ID 포함 전달 (수정 시 필요)
         title,
         content: description,
         meetingTime,
@@ -94,10 +122,13 @@ export const CreatePostView: React.FC<{
         meetingType: meetupType,
         category: tag,
       });
-      // the parent hook will navigate back to home upon success
     } catch (e) {
       console.error(e);
-      alert("모임 개설 중 오류가 발생했습니다.");
+      alert(
+        initialPost
+          ? "모임 수정 중 오류가 발생했습니다."
+          : "모임 개설 중 오류가 발생했습니다.",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -120,7 +151,7 @@ export const CreatePostView: React.FC<{
       <Header
         leftIcon={<ChevronLeft />}
         onLeftClick={onCancel}
-        title="모임 만들기"
+        title={initialPost ? "모임 수정하기" : "모임 만들기"}
       />
       <div className="pt-20 px-5 space-y-6">
         {/* Multi Image Upload */}
@@ -356,7 +387,11 @@ export const CreatePostView: React.FC<{
           disabled={submitting}
           className="w-full bg-gray-900 text-white font-bold py-4 rounded-xl shadow-lg shadow-gray-200 hover:bg-gray-800 mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {submitting ? "등록 중..." : "모임 개설하기"}
+          {submitting
+            ? "처리 중..."
+            : initialPost
+              ? "모임 수정하기"
+              : "모임 개설하기"}
         </button>
       </div>
     </div>
