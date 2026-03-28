@@ -6,8 +6,11 @@ import { getApiBaseUrl } from "./apiClient";
 
 // OAuth2 콜백 파라미터 타입
 // 백엔드는 토큰을 쿠키로 전달하고, URL에는 userId와 isNewUser만 포함됩니다.
+// TODO: 탈퇴 후 재가입 시 백엔드에서 is_deleted=true 파라미터 추가 예정
 export interface LoginCallbackData {
     isNewUser: boolean;
+    /** @todo 백엔드 is_deleted=true 파라미터 연동 후 활성화 */
+    isRejoin: boolean;
     userId: number;
 }
 
@@ -23,7 +26,7 @@ export const getGoogleLoginUrl = (): string => {
 };
 
 // URL 쿼리 파라미터에서 OAuth2 콜백 데이터 추출
-// 백엔드 전달 파라미터: userId, isNewUser
+// 백엔드 전달 파라미터: userId, isNewUser, isRejoin(선택)
 // accessToken, refreshToken은 HttpOnly 쿠키로 자동 저장됨
 export const parseCallbackParams = (): LoginCallbackData | null => {
     const params = new URLSearchParams(window.location.search);
@@ -42,6 +45,9 @@ export const parseCallbackParams = (): LoginCallbackData | null => {
 
     return {
         isNewUser: isNewUser === "true",
+        // TODO: 백엔드에서 is_deleted=true 파라미터 추가 시 아래 주석 해제
+        // isRejoin: params.get("is_deleted") === "true",
+        isRejoin: false,
         userId: parsedId,
     };
 };

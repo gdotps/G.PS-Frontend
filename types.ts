@@ -28,6 +28,10 @@ export interface UpdateProfileRequest {
   introduction?: string;
 }
 
+export interface UpdateNotificationRequest {
+  notificationEnabled: boolean;
+}
+
 export interface Comment {
   id: number;
   authorId: number;

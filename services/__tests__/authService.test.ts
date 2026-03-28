@@ -67,11 +67,11 @@ describe("getGoogleLoginUrl", () => {
 // parseCallbackParams
 // ─────────────────────────────────────────────
 describe("parseCallbackParams", () => {
-  it("returns { userId, isNewUser } when both params are present", () => {
+  it("returns { userId, isNewUser, isRejoin } when both params are present", () => {
     setLocationSearch("?userId=42&isNewUser=false");
 
     const result = parseCallbackParams();
-    expect(result).toEqual({ userId: 42, isNewUser: false });
+    expect(result).toEqual({ userId: 42, isNewUser: false, isRejoin: false });
   });
 
   it("parses isNewUser=true correctly", () => {

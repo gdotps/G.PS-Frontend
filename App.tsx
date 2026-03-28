@@ -18,6 +18,7 @@ import { PostDetail } from "./components/PostDetail";
 import { ProfileEdit } from "./components/ProfileEdit";
 import { ProfileSetup } from "./components/ProfileSetup";
 import { ProfileView } from "./components/ProfileView";
+import { ConfirmModal } from "./components/ConfirmModal";
 
 export default function App() {
   const {
@@ -55,6 +56,9 @@ export default function App() {
     checkLoginStatus, // Updated hook name
     goToEditPost,
     editPost,
+    showRejoinConfirm,
+    handleRejoinConfirm,
+    handleRejoinCancel,
   } = useAppLogic();
 
   useEffect(() => {
@@ -193,6 +197,13 @@ export default function App() {
       {renderContent()}
       {showNav && (
         <BottomNav currentView={currentView} onChangeView={setCurrentView} />
+      )}
+      {showRejoinConfirm && (
+        <ConfirmModal
+          message="재가입하시겠습니까?"
+          onConfirm={handleRejoinConfirm}
+          onCancel={handleRejoinCancel}
+        />
       )}
     </div>
   );

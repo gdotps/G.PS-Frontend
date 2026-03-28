@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { fetchCurrentUser, updateUserProfile, logoutUser, getUserInfo, withdrawUser } from "../userService";
+import { fetchCurrentUser, updateUserProfile, logoutUser, getUserInfo, withdrawUser, updateNotificationSetting } from "../userService";
 import type { Post, User } from "../../types";
 
 // ─────────────────────────────────────────────
@@ -328,5 +328,73 @@ describe("getUserInfo", () => {
     const result = getUserInfo(77, [post]);
 
     expect(result.nickname).toBe("알 수 없음");
+  });
+});
+
+// ─────────────────────────────────────────────
+// updateNotificationSetting
+// ─────────────────────────────────────────────
+describe("updateNotificationSetting", () => {
+  it("calls PATCH /api/v1/users/me/notifications with correct endpoint and method", async () => {
+    mockApiClient.mockResolvedValueOnce({
+      success: true,
+      message: "알림 설정이 변경되었습니다.",
+      code: "USER_SUCCESS",
+      data: { notificationEnabled: true },
+    });
+
+    await updateNotificationSetting(true);
+
+    expect(mockApiClient).toHaveBeenCalledTimes(1);
+    const [path, options] = mockApiClient.mock.calls[0] as [string, RequestInit];
+    expect(path).toBe("/api/v1/users/me/notifications");
+    expect(options.method).toBe("PATCH");
+  });
+
+  it("returns { notificationEnabled: true } when called with true", async () => {
+    mockApiClient.mockResolvedValueOnce({
+      success: true,
+      message: "알림 설정이 변경되었습니다.",
+      code: "USER_SUCCESS",
+      data: { notificationEnabled: true },
+    });
+
+    const result = await updateNotificationSetting(true);
+
+    expect(result).toEqual({ notificationEnabled: true });
+  });
+
+  it("returns { notificationEnabled: false } when called with false", async () => {
+    mockApiClient.mockResolvedValueOnce({
+      success: true,
+      message: "알림 설정이 변경되었습니다.",
+      code: "USER_SUCCESS",
+      data: { notificationEnabled: false },
+    });
+
+    const result = await updateNotificationSetting(false);
+
+    expect(result).toEqual({ notificationEnabled: false });
+  });
+
+  it("sends the correct request body", async () => {
+    mockApiClient.mockResolvedValueOnce({
+      success: true,
+      message: "알림 설정이 변경되었습니다.",
+      code: "USER_SUCCESS",
+      data: { notificationEnabled: false },
+    });
+
+    await updateNotificationSetting(false);
+
+    const [, options] = mockApiClient.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(options.body as string);
+    expect(body).toEqual({ notificationEnabled: false });
+  });
+
+  it("propagates errors thrown by apiClient", async () => {
+    mockApiClient.mockRejectedValueOnce(new Error("API 오류 500"));
+
+    await expect(updateNotificationSetting(true)).rejects.toThrow("API 오류 500");
   });
 });

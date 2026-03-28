@@ -1,4 +1,4 @@
-import { User, Post, UpdateProfileRequest, WithdrawResponse } from "../types";
+import { User, Post, UpdateProfileRequest, UpdateNotificationRequest, WithdrawResponse } from "../types";
 import { CURRENT_USER } from "../constants";
 import { apiClient } from "./apiClient";
 
@@ -36,6 +36,19 @@ export const withdrawUser = async (): Promise<{ message: string; data: WithdrawR
     method: "DELETE",
   });
   return { message: res.message, data: res.data };
+};
+
+export const updateNotificationSetting = async (
+  notificationEnabled: boolean,
+): Promise<UpdateNotificationRequest> => {
+  const res = await apiClient<ApiResponse<UpdateNotificationRequest>>(
+    "/api/v1/users/me/notifications",
+    {
+      method: "PATCH",
+      body: JSON.stringify({ notificationEnabled }),
+    },
+  );
+  return res.data;
 };
 
 export const getUserInfo = (userId: number, posts: Post[]): User => {

@@ -13,6 +13,7 @@ import {
 import {
   fetchCurrentUser,
   logoutUser,
+  updateNotificationSetting,
   updateUserProfile,
   withdrawUser,
 } from "../services/userService";
@@ -45,6 +46,7 @@ export const useAppLogic = () => {
   const [notifications, setNotifications] =
     useState<Notification[]>(MOCK_NOTIFICATIONS);
   const [bookmarkedIds, setBookmarkedIds] = useState<number[]>([]);
+  const [showRejoinConfirm, setShowRejoinConfirm] = useState(false);
 
   // 토큰 갱신 실패 시 apiClient가 발생시키는 이벤트 처리
   useEffect(() => {
@@ -266,8 +268,7 @@ export const useAppLogic = () => {
   const handleDeleteAccount = async () => {
     if (!window.confirm("정말로 탈퇴하시겠습니까?\n탈퇴 후 30일간 데이터가 보관되며, 이후 완전히 삭제됩니다.")) return;
     try {
-      const { message } = await withdrawUser();
-      alert(message);
+      await withdrawUser();
     } catch {
       alert("회원 탈퇴에 실패했습니다. 잠시 후 다시 시도해주세요.");
       return;
@@ -276,11 +277,42 @@ export const useAppLogic = () => {
     setCurrentView(ViewState.ONBOARDING);
   };
 
-  const toggleNotification = () => {
-    setCurrentUser((prev) => ({
-      ...prev,
-      notificationEnabled: !prev.notificationEnabled,
-    }));
+  const handleRejoinConfirm = async () => {
+    setShowRejoinConfirm(false);
+    const userData = await fetchCurrentUser();
+    if (userData) {
+      setCurrentUser(userData);
+    }
+    setCurrentView(ViewState.HOME);
+  };
+
+  const handleRejoinCancel = () => {
+    setShowRejoinConfirm(false);
+    setCurrentView(ViewState.ONBOARDING);
+  };
+
+  const toggleNotification = async () => {
+    const previousValue = currentUser.notificationEnabled;
+    const nextValue = !previousValue;
+
+    // 낙관적 업데이트: 즉시 UI 상태 변경
+    setCurrentUser((prev) => ({ ...prev, notificationEnabled: nextValue }));
+
+    try {
+      const result = await updateNotificationSetting(nextValue);
+      // 서버 응답으로 상태 확정
+      setCurrentUser((prev) => ({
+        ...prev,
+        notificationEnabled: result.notificationEnabled,
+      }));
+    } catch {
+      // 실패 시 롤백
+      setCurrentUser((prev) => ({
+        ...prev,
+        notificationEnabled: previousValue,
+      }));
+      alert("알림 설정 변경에 실패했습니다. 다시 시도해주세요.");
+    }
   };
 
   const createPost = async (data: any) => {
@@ -411,6 +443,12 @@ export const useAppLogic = () => {
     if (loginData) {
       cleanUpUrl();
 
+      // TODO: 백엔드에서 is_deleted=true 파라미터 추가 시 동작
+      if (loginData.isRejoin) {
+        setShowRejoinConfirm(true);
+        return;
+      }
+
       if (loginData.isNewUser) {
         // userId만 임시 저장하고 프로필 설정 화면으로 이동
         setCurrentUser((prev) => ({ ...prev, userId: loginData.userId }));
@@ -475,5 +513,8 @@ export const useAppLogic = () => {
     handleDeleteAccount,
     toggleNotification,
     checkLoginStatus,
+    showRejoinConfirm,
+    handleRejoinConfirm,
+    handleRejoinCancel,
   };
 };
