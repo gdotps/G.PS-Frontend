@@ -27,12 +27,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   return (
     <div className="pt-20 px-4 text-center">
       <div className="w-24 h-24 bg-gray-200 rounded-full mx-auto mb-4 overflow-hidden">
-        <img src={user.avatarUrl || DEFAULT_AVATAR} alt="me" className="w-full h-full object-cover" />
+        <img src={user.profileUrl || DEFAULT_AVATAR} alt="me" className="w-full h-full object-cover" />
       </div>
       {/* 닉네임 + 설정 아이콘 컨테이너 */}
       <div className="flex justify-center mb-2">
         <div className="relative inline-block">
-          <h2 className="text-2xl font-bold px-2">{user.name}</h2>
+          <h2 className="text-2xl font-bold px-2">{user.nickname}</h2>
           <button
             onClick={onEditProfile}
             className="absolute left-full top-1/2 -translate-y-1/2 ml-1 text-gray-400 hover:text-gray-600 transition-colors bg-gray-100 p-1.5 rounded-full"

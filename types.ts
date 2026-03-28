@@ -23,6 +23,11 @@ export interface User {
   notificationEnabled?: boolean;
 }
 
+export interface UpdateProfileRequest {
+  nickname?: string;
+  introduction?: string;
+}
+
 export interface Comment {
   id: number;
   authorId: number;

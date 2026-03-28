@@ -96,11 +96,15 @@ export const ProfileEdit: React.FC<ProfileEditProps> = ({ user, onSave, onCancel
 
                 <div className="space-y-4">
                     <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-1">닉네임</label>
+                        <label className="block text-sm font-bold text-gray-700 mb-1">
+                            닉네임
+                            <span className="text-gray-400 font-normal ml-1 text-xs">({nickname.length}/10)</span>
+                        </label>
                         <input
                             type="text"
                             value={nickname}
                             onChange={(e) => setNickname(e.target.value)}
+                            maxLength={10}
                             className={`w-full p-3 bg-gray-50 rounded-xl border-2 focus:outline-none focus:bg-white transition-colors ${errors.name ? 'border-red-400 focus:border-red-500' : 'border-transparent focus:border-gps-400'}`}
                             placeholder="닉네임 입력"
                         />

@@ -130,6 +130,53 @@ describe("updateUserProfile", () => {
     expect(body.nickname).toBe("");
     expect(body.introduction).toBe("");
   });
+
+  // ── Partial update tests ──────────────────────────────────────────────────
+
+  it("sends only nickname when introduction is omitted", async () => {
+    mockApiClient.mockResolvedValueOnce({ success: true, data: { ...MOCK_USER, nickname: "OnlyNick" } });
+
+    await updateUserProfile({ nickname: "OnlyNick" });
+
+    const [path, options] = mockApiClient.mock.calls[0] as [string, RequestInit];
+    expect(path).toBe("/api/v1/users/me");
+    expect(options.method).toBe("PATCH");
+    const body = JSON.parse(options.body as string);
+    expect(body.nickname).toBe("OnlyNick");
+    expect(body).not.toHaveProperty("introduction");
+  });
+
+  it("sends only introduction when nickname is omitted", async () => {
+    mockApiClient.mockResolvedValueOnce({ success: true, data: { ...MOCK_USER, introduction: "Only intro" } });
+
+    await updateUserProfile({ introduction: "Only intro" });
+
+    const [, options] = mockApiClient.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(options.body as string);
+    expect(body.introduction).toBe("Only intro");
+    expect(body).not.toHaveProperty("nickname");
+  });
+
+  it("sends both fields when both are provided", async () => {
+    mockApiClient.mockResolvedValueOnce({ success: true, data: MOCK_USER });
+
+    await updateUserProfile({ nickname: "Nick", introduction: "Intro" });
+
+    const [, options] = mockApiClient.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(options.body as string);
+    expect(body.nickname).toBe("Nick");
+    expect(body.introduction).toBe("Intro");
+  });
+
+  it("sends an empty object when no fields are provided", async () => {
+    mockApiClient.mockResolvedValueOnce({ success: true, data: MOCK_USER });
+
+    await updateUserProfile({});
+
+    const [, options] = mockApiClient.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(options.body as string);
+    expect(body).toEqual({});
+  });
 });
 
 // ─────────────────────────────────────────────

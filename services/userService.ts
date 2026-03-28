@@ -1,4 +1,4 @@
-import { User, Post } from "../types";
+import { User, Post, UpdateProfileRequest } from "../types";
 import { CURRENT_USER } from "../constants";
 import { apiClient } from "./apiClient";
 
@@ -16,10 +16,7 @@ export const fetchCurrentUser = async (): Promise<User | null> => {
   }
 };
 
-export const updateUserProfile = async (data: {
-  nickname: string;
-  introduction: string;
-}): Promise<User> => {
+export const updateUserProfile = async (data: UpdateProfileRequest): Promise<User> => {
   const res = await apiClient<ApiResponse<User>>("/api/v1/users/me", {
     method: "PATCH",
     body: JSON.stringify(data),

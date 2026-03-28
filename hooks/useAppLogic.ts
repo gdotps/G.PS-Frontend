@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CURRENT_USER,
   MOCK_CHATS,
@@ -26,6 +26,7 @@ import {
   Message,
   Notification,
   Post,
+  UpdateProfileRequest,
   User,
   ViewState,
 } from "../types";
@@ -34,6 +35,7 @@ export const useAppLogic = () => {
   const [currentView, setCurrentView] = useState<ViewState>(
     ViewState.ONBOARDING,
   );
+  const loginCheckDoneRef = useRef(false);
   const [currentUser, setCurrentUser] = useState<User>(CURRENT_USER);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [selectedChatId, setSelectedChatId] = useState<number | null>(null);
@@ -223,17 +225,28 @@ export const useAppLogic = () => {
   };
 
   // 프로필 수정 저장 (ProfileEdit 컴포넌트에서 호출)
+  // 변경된 필드만 서버에 전송하고, 변경이 없으면 API 호출 없이 화면 전환
   const handleProfileUpdate = async (updatedUser: User) => {
+    const changes: UpdateProfileRequest = {};
+    if (updatedUser.nickname !== currentUser.nickname) {
+      changes.nickname = updatedUser.nickname;
+    }
+    if ((updatedUser.introduction ?? "") !== (currentUser.introduction ?? "")) {
+      changes.introduction = updatedUser.introduction ?? "";
+    }
+
+    if (Object.keys(changes).length === 0) {
+      setCurrentView(ViewState.PROFILE);
+      return;
+    }
+
     try {
-      const savedUser = await updateUserProfile({
-        nickname: updatedUser.nickname,
-        introduction: updatedUser.introduction ?? "",
-      });
+      const savedUser = await updateUserProfile(changes);
       setCurrentUser(savedUser);
+      setCurrentView(ViewState.PROFILE);
     } catch {
       alert("프로필 저장에 실패했습니다.");
     }
-    setCurrentView(ViewState.PROFILE);
   };
 
   // 로그아웃: 백엔드에서 쿠키 무효화 후 클라이언트 상태 초기화
@@ -374,7 +387,11 @@ export const useAppLogic = () => {
 
   // OAuth2 콜백 처리 및 로그인 상태 확인
   // 토큰은 HttpOnly 쿠키로 백엔드가 관리하므로 JS에서 직접 접근하지 않음
+  // loginCheckDoneRef로 StrictMode 이중 실행 및 currentView 변경 시 재실행 방지
   const checkLoginStatus = useCallback(async () => {
+    if (loginCheckDoneRef.current) return;
+    loginCheckDoneRef.current = true;
+
     // 1. OAuth2 콜백 에러 처리
     const callbackError = parseCallbackError();
     if (callbackError) {
@@ -410,14 +427,12 @@ export const useAppLogic = () => {
       const userData = await fetchCurrentUser();
       if (userData) {
         setCurrentUser(userData);
-        if (currentView === ViewState.ONBOARDING) {
-          setCurrentView(ViewState.HOME);
-        }
+        setCurrentView(ViewState.HOME);
       }
     } catch {
       // 인증되지 않은 상태 — 온보딩 화면 유지
     }
-  }, [currentView]);
+  }, []);
 
   return {
     currentView,
