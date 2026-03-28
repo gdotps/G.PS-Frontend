@@ -9,15 +9,20 @@ const API_BASE_URL =
 
 export const getApiBaseUrl = (): string => API_BASE_URL;
 
-const doRefresh = async (): Promise<boolean> => {
+type RefreshResult = "success" | "expired" | "error";
+
+const doRefresh = async (): Promise<RefreshResult> => {
     try {
         const res = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
             method: "POST",
             credentials: "include",
         });
-        return res.ok;
+        if (res.ok) return "success";
+        const body = await res.json().catch(() => ({})) as { code?: string };
+        if (body?.code === "REFRESH_TOKEN_EXPIRED") return "expired";
+        return "error";
     } catch {
-        return false;
+        return "error";
     }
 };
 
@@ -38,12 +43,16 @@ export const apiClient = async <T>(
     let response = await fetch(url, init);
 
     if (response.status === 401) {
-        const refreshed = await doRefresh();
-        if (refreshed) {
+        const refreshResult = await doRefresh();
+        if (refreshResult === "success") {
             response = await fetch(url, init);
         } else {
             window.dispatchEvent(new CustomEvent("auth:logout"));
-            throw new Error("세션이 만료되었습니다. 다시 로그인해 주세요.");
+            const message =
+                refreshResult === "expired"
+                    ? "RefreshToken이 만료되었습니다. 다시 로그인해 주세요."
+                    : "세션이 만료되었습니다. 다시 로그인해 주세요.";
+            throw new Error(message);
         }
     }
 

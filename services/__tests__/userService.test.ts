@@ -183,14 +183,14 @@ describe("updateUserProfile", () => {
 // logoutUser
 // ─────────────────────────────────────────────
 describe("logoutUser", () => {
-  it("calls POST /api/v1/users/logout", async () => {
+  it("calls POST /api/v1/auth/logout", async () => {
     mockApiClient.mockResolvedValueOnce({ success: true, data: null });
 
     await logoutUser();
 
     expect(mockApiClient).toHaveBeenCalledTimes(1);
     const [path, options] = mockApiClient.mock.calls[0] as [string, RequestInit];
-    expect(path).toBe("/api/v1/users/logout");
+    expect(path).toBe("/api/v1/auth/logout");
     expect(options.method).toBe("POST");
   });
 

@@ -164,6 +164,39 @@ describe("apiClient — 401 handling", () => {
     const event = dispatchSpy.mock.calls[0][0] as CustomEvent;
     expect(event.type).toBe("auth:logout");
   });
+
+  it("throws RefreshToken 만료 메시지 when refresh returns REFRESH_TOKEN_EXPIRED code", async () => {
+    const mockFetch = vi.fn()
+      // Original request → 401
+      .mockResolvedValueOnce(makeResponse(401, "Unauthorized", false))
+      // Refresh → 401 with REFRESH_TOKEN_EXPIRED code
+      .mockResolvedValueOnce(
+        makeResponse(401, { code: "REFRESH_TOKEN_EXPIRED", message: "Refresh token expired" }, false)
+      );
+
+    vi.stubGlobal("fetch", mockFetch);
+    const dispatchSpy = vi.spyOn(window, "dispatchEvent");
+
+    await expect(apiClient("/api/v1/protected")).rejects.toThrow(
+      "RefreshToken이 만료되었습니다"
+    );
+
+    expect(dispatchSpy).toHaveBeenCalledTimes(1);
+    const event = dispatchSpy.mock.calls[0][0] as CustomEvent;
+    expect(event.type).toBe("auth:logout");
+  });
+
+  it("throws 세션 만료 메시지 when refresh fails without specific error code", async () => {
+    const mockFetch = vi.fn()
+      .mockResolvedValueOnce(makeResponse(401, "Unauthorized", false))
+      .mockResolvedValueOnce(makeResponse(500, { code: "INTERNAL_ERROR" }, false));
+
+    vi.stubGlobal("fetch", mockFetch);
+
+    await expect(apiClient("/api/v1/protected")).rejects.toThrow(
+      "세션이 만료되었습니다"
+    );
+  });
 });
 
 // ─────────────────────────────────────────────

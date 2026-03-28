@@ -25,7 +25,7 @@ export const updateUserProfile = async (data: UpdateProfileRequest): Promise<Use
 };
 
 export const logoutUser = async (): Promise<void> => {
-  await apiClient<ApiResponse<null>>("/api/v1/users/logout", {
+  await apiClient<ApiResponse<null>>("/api/v1/auth/logout", {
     method: "POST",
   });
 };
