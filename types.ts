@@ -88,3 +88,9 @@ export interface Notification {
   isRead: boolean;
   relatedId?: number;
 }
+
+export interface WithdrawResponse {
+  userId: number;
+  deleted_at: string;
+  is_deleted: boolean;
+}

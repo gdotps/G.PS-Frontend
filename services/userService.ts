@@ -1,9 +1,10 @@
-import { User, Post, UpdateProfileRequest } from "../types";
+import { User, Post, UpdateProfileRequest, WithdrawResponse } from "../types";
 import { CURRENT_USER } from "../constants";
 import { apiClient } from "./apiClient";
 
 interface ApiResponse<T> {
   success: boolean;
+  message: string;
   data: T;
 }
 
@@ -28,6 +29,13 @@ export const logoutUser = async (): Promise<void> => {
   await apiClient<ApiResponse<null>>("/api/v1/auth/logout", {
     method: "POST",
   });
+};
+
+export const withdrawUser = async (): Promise<{ message: string; data: WithdrawResponse }> => {
+  const res = await apiClient<ApiResponse<WithdrawResponse>>("/api/v1/users/withdraw", {
+    method: "DELETE",
+  });
+  return { message: res.message, data: res.data };
 };
 
 export const getUserInfo = (userId: number, posts: Post[]): User => {

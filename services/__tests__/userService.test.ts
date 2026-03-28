@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { fetchCurrentUser, updateUserProfile, logoutUser, getUserInfo } from "../userService";
+import { fetchCurrentUser, updateUserProfile, logoutUser, getUserInfo, withdrawUser } from "../userService";
 import type { Post, User } from "../../types";
 
 // ─────────────────────────────────────────────
@@ -205,6 +205,52 @@ describe("logoutUser", () => {
     mockApiClient.mockRejectedValueOnce(new Error("세션이 만료되었습니다. 다시 로그인해 주세요."));
 
     await expect(logoutUser()).rejects.toThrow();
+  });
+});
+
+// ─────────────────────────────────────────────
+// withdrawUser
+// ─────────────────────────────────────────────
+describe("withdrawUser", () => {
+  const MOCK_WITHDRAW_DATA = {
+    userId: 3,
+    deleted_at: "2026-02-15 00:00:00",
+    is_deleted: true,
+  };
+  const MOCK_MESSAGE = "회원탈퇴가 완료되었습니다. 그동안 이용해주셔서 감사합니다.";
+
+  it("calls DELETE /api/v1/users/withdraw", async () => {
+    mockApiClient.mockResolvedValueOnce({
+      success: true,
+      message: MOCK_MESSAGE,
+      data: MOCK_WITHDRAW_DATA,
+    });
+
+    await withdrawUser();
+
+    expect(mockApiClient).toHaveBeenCalledTimes(1);
+    const [path, options] = mockApiClient.mock.calls[0] as [string, RequestInit];
+    expect(path).toBe("/api/v1/users/withdraw");
+    expect(options.method).toBe("DELETE");
+  });
+
+  it("returns { message, data } on success", async () => {
+    mockApiClient.mockResolvedValueOnce({
+      success: true,
+      message: MOCK_MESSAGE,
+      data: MOCK_WITHDRAW_DATA,
+    });
+
+    const result = await withdrawUser();
+
+    expect(result.message).toBe(MOCK_MESSAGE);
+    expect(result.data).toEqual(MOCK_WITHDRAW_DATA);
+  });
+
+  it("propagates errors thrown by apiClient", async () => {
+    mockApiClient.mockRejectedValueOnce(new Error("API 오류 401"));
+
+    await expect(withdrawUser()).rejects.toThrow("API 오류 401");
   });
 });
 

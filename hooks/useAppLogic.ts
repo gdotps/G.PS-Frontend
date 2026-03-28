@@ -14,6 +14,7 @@ import {
   fetchCurrentUser,
   logoutUser,
   updateUserProfile,
+  withdrawUser,
 } from "../services/userService";
 import {
   createPost as apiCreatePost,
@@ -262,13 +263,17 @@ export const useAppLogic = () => {
     }
   };
 
-  const handleDeleteAccount = () => {
-    if (window.confirm("정말로 탈퇴하시겠습니까? 모든 데이터가 삭제됩니다.")) {
-      // 탈퇴 로직 (API 호출 등)
-      alert("회원 탈퇴가 완료되었습니다.");
-      setCurrentView(ViewState.ONBOARDING);
-      setCurrentUser(CURRENT_USER);
+  const handleDeleteAccount = async () => {
+    if (!window.confirm("정말로 탈퇴하시겠습니까?\n탈퇴 후 30일간 데이터가 보관되며, 이후 완전히 삭제됩니다.")) return;
+    try {
+      const { message } = await withdrawUser();
+      alert(message);
+    } catch {
+      alert("회원 탈퇴에 실패했습니다. 잠시 후 다시 시도해주세요.");
+      return;
     }
+    setCurrentUser(CURRENT_USER);
+    setCurrentView(ViewState.ONBOARDING);
   };
 
   const toggleNotification = () => {
