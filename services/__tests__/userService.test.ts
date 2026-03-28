@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { fetchCurrentUser, updateUserProfile, logoutUser, getUserInfo, withdrawUser, updateNotificationSetting, getMyApplications } from "../userService";
+import { fetchCurrentUser, updateUserProfile, logoutUser, getUserInfo, withdrawUser, updateNotificationSetting, getMyApplications, getLikedMeetings } from "../userService";
 import type { Post, User } from "../../types";
 
 // ─────────────────────────────────────────────
@@ -496,5 +496,104 @@ describe("getMyApplications", () => {
     mockApiClient.mockRejectedValueOnce(new Error("API 오류 401"));
 
     await expect(getMyApplications()).rejects.toThrow("API 오류 401");
+  });
+});
+
+// ─────────────────────────────────────────────
+// getLikedMeetings
+// ─────────────────────────────────────────────
+describe("getLikedMeetings", () => {
+  const MOCK_LIKED_MEETING = {
+    meetingId: 101,
+    title: "강남역 직장인 영어 회화 스터디",
+    imageUrl: "https://cdn.example.com/images/meeting_101.jpg",
+    content: "매주 목요일 저녁, 가볍게 영어로 대화하실 분들을 모집합니다.",
+    category: "스터디",
+    location: "강남역 인근 카페",
+    dateTime: "2026-03-05 19:30",
+  };
+
+  it("calls GET /api/v1/users/likes with default params (page=0, size=10)", async () => {
+    mockApiClient.mockResolvedValueOnce({
+      success: true,
+      data: {
+        content: [MOCK_LIKED_MEETING],
+        pageNumber: 0,
+        pageSize: 10,
+        totalElements: 1,
+        isLast: true,
+      },
+    });
+
+    await getLikedMeetings();
+
+    expect(mockApiClient).toHaveBeenCalledTimes(1);
+    const [path, options] = mockApiClient.mock.calls[0] as [string, RequestInit | undefined];
+    expect(path).toBe("/api/v1/users/likes?page=0&size=10");
+    expect(options?.method).toBeUndefined();
+  });
+
+  it("calls GET /api/v1/users/likes with custom page=1, size=5", async () => {
+    mockApiClient.mockResolvedValueOnce({
+      success: true,
+      data: {
+        content: [],
+        pageNumber: 1,
+        pageSize: 5,
+        totalElements: 0,
+        isLast: true,
+      },
+    });
+
+    await getLikedMeetings(1, 5);
+
+    const [path] = mockApiClient.mock.calls[0] as [string, RequestInit | undefined];
+    expect(path).toBe("/api/v1/users/likes?page=1&size=5");
+  });
+
+  it("returns content, pageNumber, totalElements, and isLast correctly", async () => {
+    mockApiClient.mockResolvedValueOnce({
+      success: true,
+      data: {
+        content: [MOCK_LIKED_MEETING],
+        pageNumber: 0,
+        pageSize: 10,
+        totalElements: 1,
+        isLast: true,
+      },
+    });
+
+    const result = await getLikedMeetings();
+
+    expect(result.content).toHaveLength(1);
+    expect(result.content[0]).toEqual(MOCK_LIKED_MEETING);
+    expect(result.pageNumber).toBe(0);
+    expect(result.totalElements).toBe(1);
+    expect(result.isLast).toBe(true);
+  });
+
+  it("handles empty content with isLast=true and totalElements=0", async () => {
+    mockApiClient.mockResolvedValueOnce({
+      success: true,
+      data: {
+        content: [],
+        pageNumber: 0,
+        pageSize: 10,
+        totalElements: 0,
+        isLast: true,
+      },
+    });
+
+    const result = await getLikedMeetings();
+
+    expect(result.content).toEqual([]);
+    expect(result.isLast).toBe(true);
+    expect(result.totalElements).toBe(0);
+  });
+
+  it("propagates errors thrown by apiClient", async () => {
+    mockApiClient.mockRejectedValueOnce(new Error("API 오류 401"));
+
+    await expect(getLikedMeetings()).rejects.toThrow("API 오류 401");
   });
 });

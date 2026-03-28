@@ -34,7 +34,7 @@ export default function App() {
     goToHome,
     goToPostDetail,
     goToChatRoom,
-    toggleBookmark,
+    toggleLike,
     handleJoin,
     handleCancelJoin,
     handleApprove,
@@ -66,6 +66,12 @@ export default function App() {
     isApplicationsLoading,
     goToMyApplications,
     loadMoreApplications,
+    likedMeetings,
+    likedMeetingsTotalElements,
+    likedMeetingsIsLast,
+    isLikedMeetingsLoading,
+    goToBookmarks,
+    loadMoreLikedMeetings,
   } = useAppLogic();
 
   useEffect(() => {
@@ -111,7 +117,7 @@ export default function App() {
             post={selectedPost}
             currentUser={currentUser}
             isBookmarked={bookmarkedIds.includes(selectedPost.id)}
-            onToggleBookmark={() => toggleBookmark(selectedPost.id)}
+            onToggleBookmark={() => toggleLike(selectedPost.id)}
             onBack={goToHome}
             onJoin={handleJoin}
             onCancelJoin={handleCancelJoin}
@@ -156,8 +162,8 @@ export default function App() {
         return (
           <ProfileView
             user={currentUser}
-            bookmarkCount={bookmarkedIds.length}
-            onViewBookmarks={() => setCurrentView(ViewState.BOOKMARKS)}
+            bookmarkCount={likedMeetingsTotalElements}
+            onViewBookmarks={goToBookmarks}
             onViewApplicants={() => setCurrentView(ViewState.APPLICANTS)}
             onViewMyApplications={goToMyApplications}
             onEditProfile={goToProfileEdit}
@@ -172,13 +178,12 @@ export default function App() {
           <NotificationView notifications={notifications} onBack={goToHome} />
         );
       case ViewState.BOOKMARKS:
-        const bookmarkedPosts = posts.filter((p) =>
-          bookmarkedIds.includes(p.id),
-        );
         return (
           <BookmarksView
-            posts={bookmarkedPosts}
-            onViewPost={goToPostDetail}
+            meetings={likedMeetings}
+            isLoading={isLikedMeetingsLoading}
+            isLast={likedMeetingsIsLast}
+            onLoadMore={loadMoreLikedMeetings}
             onBack={() => setCurrentView(ViewState.PROFILE)}
           />
         );

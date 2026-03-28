@@ -12,6 +12,7 @@ import {
 } from "../services/authService";
 import {
   fetchCurrentUser,
+  getLikedMeetings,
   getMyApplications,
   logoutUser,
   updateNotificationSetting,
@@ -23,10 +24,12 @@ import {
   updatePost as apiUpdatePost,
   PostRequest,
 } from "../services/postService";
+import { toggleLike as apiToggleLike } from "../services/likeService";
 import {
   ApplicationItem,
   ChatRoom,
   Comment,
+  LikedMeeting,
   Message,
   Notification,
   Post,
@@ -48,12 +51,18 @@ export const useAppLogic = () => {
   const [notifications, setNotifications] =
     useState<Notification[]>(MOCK_NOTIFICATIONS);
   const [bookmarkedIds, setBookmarkedIds] = useState<number[]>([]);
+  const [isLikeLoading, setIsLikeLoading] = useState<boolean>(false);
   const [showRejoinConfirm, setShowRejoinConfirm] = useState(false);
   const [isProfileLoading, setIsProfileLoading] = useState(false);
   const [myApplications, setMyApplications] = useState<ApplicationItem[]>([]);
   const [myApplicationsPage, setMyApplicationsPage] = useState<number>(0);
   const [myApplicationsIsLast, setMyApplicationsIsLast] = useState<boolean>(false);
   const [isApplicationsLoading, setIsApplicationsLoading] = useState<boolean>(false);
+  const [likedMeetings, setLikedMeetings] = useState<LikedMeeting[]>([]);
+  const [likedMeetingsPage, setLikedMeetingsPage] = useState<number>(0);
+  const [likedMeetingsIsLast, setLikedMeetingsIsLast] = useState<boolean>(false);
+  const [likedMeetingsTotalElements, setLikedMeetingsTotalElements] = useState<number>(0);
+  const [isLikedMeetingsLoading, setIsLikedMeetingsLoading] = useState<boolean>(false);
 
   // 토큰 갱신 실패 시 apiClient가 발생시키는 이벤트 처리
   useEffect(() => {
@@ -131,6 +140,36 @@ export const useAppLogic = () => {
     fetchMyApplications(0);
   };
 
+  const fetchLikedMeetings = useCallback(async (page: number = 0) => {
+    setIsLikedMeetingsLoading(true);
+    try {
+      const data = await getLikedMeetings(page);
+      if (page === 0) {
+        setLikedMeetings(data.content);
+      } else {
+        setLikedMeetings((prev) => [...prev, ...data.content]);
+      }
+      setLikedMeetingsPage(page);
+      setLikedMeetingsIsLast(data.isLast);
+      setLikedMeetingsTotalElements(data.totalElements);
+    } catch {
+      alert("찜한 모임 목록을 불러오는 데 실패했습니다.");
+    } finally {
+      setIsLikedMeetingsLoading(false);
+    }
+  }, []);
+
+  const goToBookmarks = () => {
+    setCurrentView(ViewState.BOOKMARKS);
+    fetchLikedMeetings(0);
+  };
+
+  const loadMoreLikedMeetings = useCallback(() => {
+    if (!likedMeetingsIsLast && !isLikedMeetingsLoading) {
+      fetchLikedMeetings(likedMeetingsPage + 1);
+    }
+  }, [likedMeetingsIsLast, isLikedMeetingsLoading, likedMeetingsPage, fetchLikedMeetings]);
+
   const loadMoreApplications = useCallback(() => {
     if (!myApplicationsIsLast && !isApplicationsLoading) {
       fetchMyApplications(myApplicationsPage + 1);
@@ -138,12 +177,33 @@ export const useAppLogic = () => {
   }, [myApplicationsIsLast, isApplicationsLoading, myApplicationsPage, fetchMyApplications]);
 
   // 액션
-  const toggleBookmark = (postId: number) => {
+  const toggleLike = async (postId: number) => {
+    if (isLikeLoading) return;
+
+    const prevLiked = bookmarkedIds.includes(postId);
+    // 낙관적 업데이트
     setBookmarkedIds((prev) =>
-      prev.includes(postId)
-        ? prev.filter((id) => id !== postId)
-        : [...prev, postId],
+      prevLiked ? prev.filter((id) => id !== postId) : [...prev, postId],
     );
+
+    setIsLikeLoading(true);
+    try {
+      const result = await apiToggleLike(postId);
+      // 서버 응답으로 상태 확정
+      setBookmarkedIds((prev) =>
+        result.isLiked
+          ? prev.includes(postId) ? prev : [...prev, postId]
+          : prev.filter((id) => id !== postId),
+      );
+    } catch {
+      // 실패 시 롤백
+      setBookmarkedIds((prev) =>
+        prevLiked ? [...prev, postId] : prev.filter((id) => id !== postId),
+      );
+      alert("좋아요 처리에 실패했습니다. 다시 시도해주세요.");
+    } finally {
+      setIsLikeLoading(false);
+    }
   };
 
   const handleJoin = () => {
@@ -548,7 +608,7 @@ export const useAppLogic = () => {
     goToHome,
     goToPostDetail,
     goToChatRoom,
-    toggleBookmark,
+    toggleLike,
     handleJoin,
     handleCancelJoin,
     handleApprove,
@@ -581,5 +641,12 @@ export const useAppLogic = () => {
     isApplicationsLoading,
     goToMyApplications,
     loadMoreApplications,
+    // 찜한 모임
+    likedMeetings,
+    likedMeetingsTotalElements,
+    likedMeetingsIsLast,
+    isLikedMeetingsLoading,
+    goToBookmarks,
+    loadMoreLikedMeetings,
   };
 };

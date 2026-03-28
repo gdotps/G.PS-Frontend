@@ -1,4 +1,4 @@
-import { User, Post, UpdateProfileRequest, UpdateNotificationRequest, WithdrawResponse, MyApplicationsData } from "../types";
+import { User, Post, UpdateProfileRequest, UpdateNotificationRequest, WithdrawResponse, MyApplicationsData, LikedMeetingsData } from "../types";
 import { apiClient } from "./apiClient";
 
 interface ApiResponse<T> {
@@ -56,6 +56,16 @@ export const getMyApplications = async (
 ): Promise<MyApplicationsData> => {
   const res = await apiClient<ApiResponse<MyApplicationsData>>(
     `/api/v1/users/me/applications?page=${page}&size=${size}`,
+  );
+  return res.data;
+};
+
+export const getLikedMeetings = async (
+  page: number = 0,
+  size: number = 10,
+): Promise<LikedMeetingsData> => {
+  const res = await apiClient<ApiResponse<LikedMeetingsData>>(
+    `/api/v1/users/likes?page=${page}&size=${size}`,
   );
   return res.data;
 };

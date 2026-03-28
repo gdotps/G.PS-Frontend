@@ -123,3 +123,25 @@ export interface WithdrawResponse {
   deleted_at: string;
   is_deleted: boolean;
 }
+
+export interface LikedMeeting {
+  meetingId: number;
+  title: string;
+  imageUrl: string;
+  content: string;
+  category: string;
+  location: string;
+  dateTime: string;
+}
+
+export interface LikedMeetingsData {
+  content: LikedMeeting[];
+  pageNumber: number;
+  pageSize: number;
+  totalElements: number;
+  isLast: boolean;
+}
+
+export interface LikeResponse {
+  isLiked: boolean;
+}
