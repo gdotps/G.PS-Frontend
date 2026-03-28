@@ -12,6 +12,7 @@ import {
 } from "../services/authService";
 import {
   fetchCurrentUser,
+  getMyApplications,
   logoutUser,
   updateNotificationSetting,
   updateUserProfile,
@@ -23,6 +24,7 @@ import {
   PostRequest,
 } from "../services/postService";
 import {
+  ApplicationItem,
   ChatRoom,
   Comment,
   Message,
@@ -48,6 +50,10 @@ export const useAppLogic = () => {
   const [bookmarkedIds, setBookmarkedIds] = useState<number[]>([]);
   const [showRejoinConfirm, setShowRejoinConfirm] = useState(false);
   const [isProfileLoading, setIsProfileLoading] = useState(false);
+  const [myApplications, setMyApplications] = useState<ApplicationItem[]>([]);
+  const [myApplicationsPage, setMyApplicationsPage] = useState<number>(0);
+  const [myApplicationsIsLast, setMyApplicationsIsLast] = useState<boolean>(false);
+  const [isApplicationsLoading, setIsApplicationsLoading] = useState<boolean>(false);
 
   // 토큰 갱신 실패 시 apiClient가 발생시키는 이벤트 처리
   useEffect(() => {
@@ -101,6 +107,35 @@ export const useAppLogic = () => {
     setCurrentView(ViewState.PROFILE);
     refreshCurrentUser();
   };
+
+  const fetchMyApplications = useCallback(async (page: number = 0) => {
+    setIsApplicationsLoading(true);
+    try {
+      const data = await getMyApplications(page);
+      if (page === 0) {
+        setMyApplications(data.content);
+      } else {
+        setMyApplications((prev) => [...prev, ...data.content]);
+      }
+      setMyApplicationsPage(page);
+      setMyApplicationsIsLast(data.last);
+    } catch {
+      alert("신청 목록을 불러오는 데 실패했습니다.");
+    } finally {
+      setIsApplicationsLoading(false);
+    }
+  }, []);
+
+  const goToMyApplications = () => {
+    setCurrentView(ViewState.MY_APPLICATIONS);
+    fetchMyApplications(0);
+  };
+
+  const loadMoreApplications = useCallback(() => {
+    if (!myApplicationsIsLast && !isApplicationsLoading) {
+      fetchMyApplications(myApplicationsPage + 1);
+    }
+  }, [myApplicationsIsLast, isApplicationsLoading, myApplicationsPage, fetchMyApplications]);
 
   // 액션
   const toggleBookmark = (postId: number) => {
@@ -540,5 +575,11 @@ export const useAppLogic = () => {
     showRejoinConfirm,
     handleRejoinConfirm,
     handleRejoinCancel,
+    // 나의 신청 목록
+    myApplications,
+    myApplicationsIsLast,
+    isApplicationsLoading,
+    goToMyApplications,
+    loadMoreApplications,
   };
 };

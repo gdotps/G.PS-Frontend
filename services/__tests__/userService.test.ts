@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { fetchCurrentUser, updateUserProfile, logoutUser, getUserInfo, withdrawUser, updateNotificationSetting } from "../userService";
+import { fetchCurrentUser, updateUserProfile, logoutUser, getUserInfo, withdrawUser, updateNotificationSetting, getMyApplications } from "../userService";
 import type { Post, User } from "../../types";
 
 // ─────────────────────────────────────────────
@@ -258,7 +258,13 @@ describe("withdrawUser", () => {
 // getUserInfo (pure utility — no apiClient)
 // ─────────────────────────────────────────────
 describe("getUserInfo", () => {
-  const CURRENT_USER_ID = 1; // matches CURRENT_USER in constants.ts
+  const CURRENT_USER_ID = 1;
+  const mockCurrentUser: User = {
+    userId: CURRENT_USER_ID,
+    nickname: "테스트유저",
+    profileUrl: "https://example.com/me.png",
+    notificationEnabled: true,
+  };
 
   const makePost = (overrides: Partial<Post> = {}): Post => ({
     id: 100,
@@ -281,15 +287,15 @@ describe("getUserInfo", () => {
     ...overrides,
   });
 
-  it("returns CURRENT_USER when userId matches the current user", () => {
-    const result = getUserInfo(CURRENT_USER_ID, []);
-    // CURRENT_USER.userId === 1
+  it("returns currentUser when userId matches the current user", () => {
+    const result = getUserInfo(CURRENT_USER_ID, [], mockCurrentUser);
     expect(result.userId).toBe(CURRENT_USER_ID);
+    expect(result.nickname).toBe("테스트유저");
   });
 
   it("returns author info when userId matches a post authorId", () => {
     const post = makePost({ authorId: 42, authorName: "PostAuthor", authorAvatar: "https://example.com/pa.png" });
-    const result = getUserInfo(42, [post]);
+    const result = getUserInfo(42, [post], mockCurrentUser);
 
     expect(result.userId).toBe(42);
     expect(result.nickname).toBe("PostAuthor");
@@ -304,28 +310,27 @@ describe("getUserInfo", () => {
       notificationEnabled: false,
     };
     const post = makePost({ authorId: 99, applicants: [applicant] });
-    const result = getUserInfo(77, [post]);
+    const result = getUserInfo(77, [post], mockCurrentUser);
 
     expect(result.userId).toBe(77);
     expect(result.nickname).toBe("Applicant");
   });
 
   it("returns a fallback user when userId is not found anywhere", () => {
-    const result = getUserInfo(9999, [makePost({ authorId: 2 })]);
+    const result = getUserInfo(9999, [makePost({ authorId: 2 })], mockCurrentUser);
 
     expect(result.userId).toBe(9999);
     expect(result.nickname).toBe("알 수 없음");
   });
 
   it("returns fallback user when posts array is empty", () => {
-    const result = getUserInfo(9999, []);
+    const result = getUserInfo(9999, [], mockCurrentUser);
     expect(result.nickname).toBe("알 수 없음");
   });
 
   it("skips posts without applicants array when searching for applicant", () => {
-    // post has no applicants property — should not throw, should fall through to fallback
     const post = makePost({ authorId: 55, applicants: undefined });
-    const result = getUserInfo(77, [post]);
+    const result = getUserInfo(77, [post], mockCurrentUser);
 
     expect(result.nickname).toBe("알 수 없음");
   });
@@ -396,5 +401,100 @@ describe("updateNotificationSetting", () => {
     mockApiClient.mockRejectedValueOnce(new Error("API 오류 500"));
 
     await expect(updateNotificationSetting(true)).rejects.toThrow("API 오류 500");
+  });
+});
+
+// ─────────────────────────────────────────────
+// getMyApplications
+// ─────────────────────────────────────────────
+describe("getMyApplications", () => {
+  const MOCK_APPLICATION_ITEM = {
+    applicationId: 1,
+    postId: 10,
+    title: "주말 축구 모임",
+    category: "SPORTS",
+    status: "PENDING" as const,
+    meetingTime: "2026-04-01T10:00:00",
+    locationName: "서울 중구",
+    postImageUrl: "https://example.com/img.png",
+  };
+
+  const MOCK_PAGEABLE = {
+    pageNumber: 0,
+    pageSize: 10,
+  };
+
+  it("calls GET /api/v1/users/me/applications with default params (page=0, size=10)", async () => {
+    mockApiClient.mockResolvedValueOnce({
+      success: true,
+      data: {
+        content: [MOCK_APPLICATION_ITEM],
+        pageable: MOCK_PAGEABLE,
+        last: false,
+      },
+    });
+
+    await getMyApplications();
+
+    expect(mockApiClient).toHaveBeenCalledTimes(1);
+    const [path, options] = mockApiClient.mock.calls[0] as [string, RequestInit | undefined];
+    expect(path).toBe("/api/v1/users/me/applications?page=0&size=10");
+    expect(options?.method).toBeUndefined();
+  });
+
+  it("calls GET /api/v1/users/me/applications with custom page=1, size=5", async () => {
+    mockApiClient.mockResolvedValueOnce({
+      success: true,
+      data: {
+        content: [],
+        pageable: { pageNumber: 1, pageSize: 5 },
+        last: true,
+      },
+    });
+
+    await getMyApplications(1, 5);
+
+    const [path] = mockApiClient.mock.calls[0] as [string, RequestInit | undefined];
+    expect(path).toBe("/api/v1/users/me/applications?page=1&size=5");
+  });
+
+  it("returns content array, pageable, and last flag correctly", async () => {
+    mockApiClient.mockResolvedValueOnce({
+      success: true,
+      data: {
+        content: [MOCK_APPLICATION_ITEM],
+        pageable: MOCK_PAGEABLE,
+        last: false,
+      },
+    });
+
+    const result = await getMyApplications();
+
+    expect(result.content).toHaveLength(1);
+    expect(result.content[0]).toEqual(MOCK_APPLICATION_ITEM);
+    expect(result.pageable).toEqual(MOCK_PAGEABLE);
+    expect(result.last).toBe(false);
+  });
+
+  it("handles empty content array with last=true", async () => {
+    mockApiClient.mockResolvedValueOnce({
+      success: true,
+      data: {
+        content: [],
+        pageable: { pageNumber: 0, pageSize: 10 },
+        last: true,
+      },
+    });
+
+    const result = await getMyApplications();
+
+    expect(result.content).toEqual([]);
+    expect(result.last).toBe(true);
+  });
+
+  it("propagates errors thrown by apiClient", async () => {
+    mockApiClient.mockRejectedValueOnce(new Error("API 오류 401"));
+
+    await expect(getMyApplications()).rejects.toThrow("API 오류 401");
   });
 });

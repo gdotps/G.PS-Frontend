@@ -7,6 +7,7 @@ import { ViewState } from "./types";
 // Components
 import { ApplicantListView } from "./components/ApplicantListView";
 import { BookmarksView } from "./components/BookmarksView";
+import { MyApplicationsView } from "./components/MyApplicationsView";
 import { ChatList } from "./components/ChatList";
 import { ChatRoomView } from "./components/ChatRoomView";
 import { CreatePostView } from "./components/CreatePostView";
@@ -60,6 +61,11 @@ export default function App() {
     showRejoinConfirm,
     handleRejoinConfirm,
     handleRejoinCancel,
+    myApplications,
+    myApplicationsIsLast,
+    isApplicationsLoading,
+    goToMyApplications,
+    loadMoreApplications,
   } = useAppLogic();
 
   useEffect(() => {
@@ -125,7 +131,7 @@ export default function App() {
           <ChatRoomView
             chatRoom={currentChat}
             participantsInfo={currentChat.participants.map((uid) =>
-              getUserInfo(uid, posts),
+              getUserInfo(uid, posts, currentUser),
             )}
             onBack={() => setCurrentView(ViewState.CHAT_LIST)}
             onSendMessage={handleSendMessage}
@@ -153,6 +159,7 @@ export default function App() {
             bookmarkCount={bookmarkedIds.length}
             onViewBookmarks={() => setCurrentView(ViewState.BOOKMARKS)}
             onViewApplicants={() => setCurrentView(ViewState.APPLICANTS)}
+            onViewMyApplications={goToMyApplications}
             onEditProfile={goToProfileEdit}
             onLogout={handleLogout}
             onDeleteAccount={handleDeleteAccount}
@@ -181,6 +188,16 @@ export default function App() {
             posts={posts}
             onBack={() => setCurrentView(ViewState.PROFILE)}
             onApprove={handleApprove}
+          />
+        );
+      case ViewState.MY_APPLICATIONS:
+        return (
+          <MyApplicationsView
+            applications={myApplications}
+            isLoading={isApplicationsLoading}
+            isLast={myApplicationsIsLast}
+            onLoadMore={loadMoreApplications}
+            onBack={() => setCurrentView(ViewState.PROFILE)}
           />
         );
       default:

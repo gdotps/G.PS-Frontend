@@ -8,6 +8,7 @@ interface ProfileViewProps {
   bookmarkCount: number;
   onViewBookmarks: () => void;
   onViewApplicants: () => void;
+  onViewMyApplications: () => void;
   onEditProfile: () => void;
   onLogout: () => void;
   onDeleteAccount: () => void;
@@ -20,6 +21,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   bookmarkCount,
   onViewBookmarks,
   onViewApplicants,
+  onViewMyApplications,
   onEditProfile,
   onLogout,
   onDeleteAccount,
@@ -81,6 +83,15 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           <span>찜한 모임</span>
           <div className="flex items-center gap-1 font-bold text-gray-900">
             {bookmarkCount}개 <ChevronRight size={14} />
+          </div>
+        </div>
+        <div
+          className="flex justify-between text-sm py-2 cursor-pointer hover:bg-gray-50 rounded-lg transition-colors px-1 -mx-1"
+          onClick={onViewMyApplications}
+        >
+          <span>나의 신청 목록</span>
+          <div className="flex items-center gap-1 font-bold text-gray-900">
+            <ChevronRight size={14} />
           </div>
         </div>
         <div

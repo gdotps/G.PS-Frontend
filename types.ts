@@ -13,6 +13,31 @@ export enum ViewState {
   BOOKMARKS = "BOOKMARKS",
   APPLICANTS = "APPLICANTS",
   EDIT_POST = "EDIT_POST",
+  MY_APPLICATIONS = "MY_APPLICATIONS",
+}
+
+export type ApplicationStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+export interface ApplicationItem {
+  applicationId: number;
+  postId: number;
+  title: string;
+  category: string;
+  status: ApplicationStatus;
+  meetingTime: string;
+  locationName: string;
+  postImageUrl: string | null;
+}
+
+export interface PageableInfo {
+  pageNumber: number;
+  pageSize: number;
+}
+
+export interface MyApplicationsData {
+  content: ApplicationItem[];
+  pageable: PageableInfo;
+  last: boolean;
 }
 
 export interface User {

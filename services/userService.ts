@@ -1,5 +1,4 @@
-import { User, Post, UpdateProfileRequest, UpdateNotificationRequest, WithdrawResponse } from "../types";
-import { CURRENT_USER } from "../constants";
+import { User, Post, UpdateProfileRequest, UpdateNotificationRequest, WithdrawResponse, MyApplicationsData } from "../types";
 import { apiClient } from "./apiClient";
 
 interface ApiResponse<T> {
@@ -51,8 +50,18 @@ export const updateNotificationSetting = async (
   return res.data;
 };
 
-export const getUserInfo = (userId: number, posts: Post[]): User => {
-  if (userId === CURRENT_USER.userId) return CURRENT_USER;
+export const getMyApplications = async (
+  page: number = 0,
+  size: number = 10,
+): Promise<MyApplicationsData> => {
+  const res = await apiClient<ApiResponse<MyApplicationsData>>(
+    `/api/v1/users/me/applications?page=${page}&size=${size}`,
+  );
+  return res.data;
+};
+
+export const getUserInfo = (userId: number, posts: Post[], currentUser: User): User => {
+  if (userId === currentUser.userId) return currentUser;
 
   const authorPost = posts.find((p) => p.authorId === userId);
   if (authorPost)
