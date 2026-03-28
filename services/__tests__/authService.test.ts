@@ -43,6 +43,27 @@ describe("getKakaoLoginUrl", () => {
 });
 
 // ─────────────────────────────────────────────
+// getGoogleLoginUrl
+// ─────────────────────────────────────────────
+describe("getGoogleLoginUrl", () => {
+  it("returns a URL ending with /oauth2/authorization/google", () => {
+    const url = getGoogleLoginUrl();
+    expect(url).toMatch(/\/oauth2\/authorization\/google$/);
+  });
+
+  it("returns a full URL starting with http(s)", () => {
+    const url = getGoogleLoginUrl();
+    expect(url).toMatch(/^https?:\/\//);
+  });
+
+  it("returns a different URL from kakao login URL", () => {
+    const googleUrl = getGoogleLoginUrl();
+    const kakaoUrl = getKakaoLoginUrl();
+    expect(googleUrl).not.toBe(kakaoUrl);
+  });
+});
+
+// ─────────────────────────────────────────────
 // parseCallbackParams
 // ─────────────────────────────────────────────
 describe("parseCallbackParams", () => {
