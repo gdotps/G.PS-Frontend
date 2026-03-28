@@ -23,3 +23,9 @@ dist-ssr
 *.sln
 *.sw?
 .env.local
+.env.development
+.env.production
+CLAUDE.md
+.claude/*
+# Test coverage
+coverage/

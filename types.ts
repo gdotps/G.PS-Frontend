@@ -13,6 +13,31 @@ export enum ViewState {
   BOOKMARKS = "BOOKMARKS",
   APPLICANTS = "APPLICANTS",
   EDIT_POST = "EDIT_POST",
+  MY_APPLICATIONS = "MY_APPLICATIONS",
+}
+
+export type ApplicationStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+export interface ApplicationItem {
+  applicationId: number;
+  postId: number;
+  title: string;
+  category: string;
+  status: ApplicationStatus;
+  meetingTime: string;
+  locationName: string;
+  postImageUrl: string | null;
+}
+
+export interface PageableInfo {
+  pageNumber: number;
+  pageSize: number;
+}
+
+export interface MyApplicationsData {
+  content: ApplicationItem[];
+  pageable: PageableInfo;
+  last: boolean;
 }
 
 export interface User {
@@ -21,6 +46,15 @@ export interface User {
   profileUrl: string;
   introduction?: string;
   notificationEnabled?: boolean;
+}
+
+export interface UpdateProfileRequest {
+  nickname?: string;
+  introduction?: string;
+}
+
+export interface UpdateNotificationRequest {
+  notificationEnabled: boolean;
 }
 
 export interface Comment {
@@ -82,4 +116,32 @@ export interface Notification {
   timestamp: number;
   isRead: boolean;
   relatedId?: number;
+}
+
+export interface WithdrawResponse {
+  userId: number;
+  deleted_at: string;
+  is_deleted: boolean;
+}
+
+export interface LikedMeeting {
+  meetingId: number;
+  title: string;
+  imageUrl: string;
+  content: string;
+  category: string;
+  location: string;
+  dateTime: string;
+}
+
+export interface LikedMeetingsData {
+  content: LikedMeeting[];
+  pageNumber: number;
+  pageSize: number;
+  totalElements: number;
+  isLast: boolean;
+}
+
+export interface LikeResponse {
+  isLiked: boolean;
 }

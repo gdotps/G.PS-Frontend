@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CURRENT_USER,
   MOCK_CHATS,
@@ -7,24 +7,33 @@ import {
 } from "../constants";
 import {
   cleanUpUrl,
-  clearTokens,
-  getAccessToken,
   parseCallbackError,
   parseCallbackParams,
-  saveAccessToken,
 } from "../services/authService";
-import { fetchCurrentUser } from "../services/userService";
+import {
+  fetchCurrentUser,
+  getLikedMeetings,
+  getMyApplications,
+  logoutUser,
+  updateNotificationSetting,
+  updateUserProfile,
+  withdrawUser,
+} from "../services/userService";
 import {
   createPost as apiCreatePost,
   updatePost as apiUpdatePost,
   PostRequest,
 } from "../services/postService";
+import { toggleLike as apiToggleLike } from "../services/likeService";
 import {
+  ApplicationItem,
   ChatRoom,
   Comment,
+  LikedMeeting,
   Message,
   Notification,
   Post,
+  UpdateProfileRequest,
   User,
   ViewState,
 } from "../types";
@@ -33,6 +42,7 @@ export const useAppLogic = () => {
   const [currentView, setCurrentView] = useState<ViewState>(
     ViewState.ONBOARDING,
   );
+  const loginCheckDoneRef = useRef(false);
   const [currentUser, setCurrentUser] = useState<User>(CURRENT_USER);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [selectedChatId, setSelectedChatId] = useState<number | null>(null);
@@ -41,6 +51,28 @@ export const useAppLogic = () => {
   const [notifications, setNotifications] =
     useState<Notification[]>(MOCK_NOTIFICATIONS);
   const [bookmarkedIds, setBookmarkedIds] = useState<number[]>([]);
+  const [isLikeLoading, setIsLikeLoading] = useState<boolean>(false);
+  const [showRejoinConfirm, setShowRejoinConfirm] = useState(false);
+  const [isProfileLoading, setIsProfileLoading] = useState(false);
+  const [myApplications, setMyApplications] = useState<ApplicationItem[]>([]);
+  const [myApplicationsPage, setMyApplicationsPage] = useState<number>(0);
+  const [myApplicationsIsLast, setMyApplicationsIsLast] = useState<boolean>(false);
+  const [isApplicationsLoading, setIsApplicationsLoading] = useState<boolean>(false);
+  const [likedMeetings, setLikedMeetings] = useState<LikedMeeting[]>([]);
+  const [likedMeetingsPage, setLikedMeetingsPage] = useState<number>(0);
+  const [likedMeetingsIsLast, setLikedMeetingsIsLast] = useState<boolean>(false);
+  const [likedMeetingsTotalElements, setLikedMeetingsTotalElements] = useState<number>(0);
+  const [isLikedMeetingsLoading, setIsLikedMeetingsLoading] = useState<boolean>(false);
+
+  // 토큰 갱신 실패 시 apiClient가 발생시키는 이벤트 처리
+  useEffect(() => {
+    const handleAuthLogout = () => {
+      setCurrentUser(CURRENT_USER);
+      setCurrentView(ViewState.ONBOARDING);
+    };
+    window.addEventListener("auth:logout", handleAuthLogout);
+    return () => window.removeEventListener("auth:logout", handleAuthLogout);
+  }, []);
 
   // 네비게이션 헬퍼
   const goToHome = () => setCurrentView(ViewState.HOME);
@@ -52,7 +84,7 @@ export const useAppLogic = () => {
   };
 
   const goToEditPost = (post: Post) => {
-    //setSelectedPost(post);
+    setSelectedPost(post);
     setCurrentView(ViewState.EDIT_POST);
   };
 
@@ -60,16 +92,118 @@ export const useAppLogic = () => {
     setSelectedChatId(chatId);
     setCurrentView(ViewState.CHAT_ROOM);
   };
-  const goToProfileEdit = () => setCurrentView(ViewState.PROFILE_EDIT);
-  const goToProfile = () => setCurrentView(ViewState.PROFILE);
+  const refreshCurrentUser = async () => {
+    setIsProfileLoading(true);
+    try {
+      const userData = await fetchCurrentUser();
+      if (userData !== null) {
+        setCurrentUser(userData);
+      }
+    } catch {
+      // fetchCurrentUser already swallows errors internally;
+      // this catch handles any unexpected rejections without surfacing them to the UI.
+    } finally {
+      setIsProfileLoading(false);
+    }
+  };
+
+  const goToProfileEdit = () => {
+    setCurrentView(ViewState.PROFILE_EDIT);
+    refreshCurrentUser();
+  };
+
+  const goToProfile = () => {
+    setCurrentView(ViewState.PROFILE);
+    refreshCurrentUser();
+  };
+
+  const fetchMyApplications = useCallback(async (page: number = 0) => {
+    setIsApplicationsLoading(true);
+    try {
+      const data = await getMyApplications(page);
+      if (page === 0) {
+        setMyApplications(data.content);
+      } else {
+        setMyApplications((prev) => [...prev, ...data.content]);
+      }
+      setMyApplicationsPage(page);
+      setMyApplicationsIsLast(data.last);
+    } catch {
+      alert("신청 목록을 불러오는 데 실패했습니다.");
+    } finally {
+      setIsApplicationsLoading(false);
+    }
+  }, []);
+
+  const goToMyApplications = () => {
+    setCurrentView(ViewState.MY_APPLICATIONS);
+    fetchMyApplications(0);
+  };
+
+  const fetchLikedMeetings = useCallback(async (page: number = 0) => {
+    setIsLikedMeetingsLoading(true);
+    try {
+      const data = await getLikedMeetings(page);
+      if (page === 0) {
+        setLikedMeetings(data.content);
+      } else {
+        setLikedMeetings((prev) => [...prev, ...data.content]);
+      }
+      setLikedMeetingsPage(page);
+      setLikedMeetingsIsLast(data.isLast);
+      setLikedMeetingsTotalElements(data.totalElements);
+    } catch {
+      alert("찜한 모임 목록을 불러오는 데 실패했습니다.");
+    } finally {
+      setIsLikedMeetingsLoading(false);
+    }
+  }, []);
+
+  const goToBookmarks = () => {
+    setCurrentView(ViewState.BOOKMARKS);
+    fetchLikedMeetings(0);
+  };
+
+  const loadMoreLikedMeetings = useCallback(() => {
+    if (!likedMeetingsIsLast && !isLikedMeetingsLoading) {
+      fetchLikedMeetings(likedMeetingsPage + 1);
+    }
+  }, [likedMeetingsIsLast, isLikedMeetingsLoading, likedMeetingsPage, fetchLikedMeetings]);
+
+  const loadMoreApplications = useCallback(() => {
+    if (!myApplicationsIsLast && !isApplicationsLoading) {
+      fetchMyApplications(myApplicationsPage + 1);
+    }
+  }, [myApplicationsIsLast, isApplicationsLoading, myApplicationsPage, fetchMyApplications]);
 
   // 액션
-  const toggleBookmark = (postId: number) => {
+  const toggleLike = async (postId: number) => {
+    if (isLikeLoading) return;
+
+    const prevLiked = bookmarkedIds.includes(postId);
+    // 낙관적 업데이트
     setBookmarkedIds((prev) =>
-      prev.includes(postId)
-        ? prev.filter((id) => id !== postId)
-        : [...prev, postId],
+      prevLiked ? prev.filter((id) => id !== postId) : [...prev, postId],
     );
+
+    setIsLikeLoading(true);
+    try {
+      const result = await apiToggleLike(postId);
+      // 서버 응답으로 상태 확정
+      setBookmarkedIds((prev) =>
+        result.isLiked
+          ? prev.includes(postId) ? prev : [...prev, postId]
+          : prev.filter((id) => id !== postId),
+      );
+    } catch {
+      // 실패 시 롤백
+      setBookmarkedIds((prev) =>
+        prevLiked ? [...prev, postId] : prev.filter((id) => id !== postId),
+      );
+      alert("좋아요 처리에 실패했습니다. 다시 시도해주세요.");
+    } finally {
+      setIsLikeLoading(false);
+    }
   };
 
   const handleJoin = () => {
@@ -192,54 +326,111 @@ export const useAppLogic = () => {
     setSelectedChatId(null);
   };
 
-  const handleProfileSetupSubmit = (data: {
+  // 신규 유저 프로필 설정 완료
+  // PATCH /api/v1/users/me 로 닉네임/소개 저장 후 홈으로 이동
+  const handleProfileSetupSubmit = async (data: {
     nickname: string;
     avatarUrl: string;
     introduction: string;
   }) => {
-    // 참고: 실제 앱에서는 사용자 프로필 업데이트 API 호출이 필요합니다.
-    // 여기서는 프로토타입 시뮬레이션을 위해 로컬 상태만 업데이트합니다.
-    // 전역 상태 관리(Context/Redux)가 있다면 액션을 디스패치해야 합니다.
-    console.log(`프로필 설정 완료: ${data.nickname}`);
+    try {
+      const savedUser = await updateUserProfile({
+        nickname: data.nickname,
+        introduction: data.introduction,
+      });
+      setCurrentUser(savedUser);
+      setCurrentView(ViewState.HOME);
+    } catch {
+      alert("프로필 설정에 실패했습니다. 다시 시도해주세요.");
+    }
+  };
 
-    // 프로필 정보 업데이트 (User 상태 업데이트)
-    setCurrentUser((prev) => ({
-      ...prev,
-      nickname: data.nickname,
-      profileUrl: data.avatarUrl,
-      introduction: data.introduction,
-    }));
+  // 프로필 수정 저장 (ProfileEdit 컴포넌트에서 호출)
+  // 변경된 필드만 서버에 전송하고, 변경이 없으면 API 호출 없이 화면 전환
+  const handleProfileUpdate = async (updatedUser: User) => {
+    const changes: UpdateProfileRequest = {};
+    if (updatedUser.nickname !== currentUser.nickname) {
+      changes.nickname = updatedUser.nickname;
+    }
+    if ((updatedUser.introduction ?? "") !== (currentUser.introduction ?? "")) {
+      changes.introduction = updatedUser.introduction ?? "";
+    }
+
+    if (Object.keys(changes).length === 0) {
+      setCurrentView(ViewState.PROFILE);
+      return;
+    }
+
+    try {
+      const savedUser = await updateUserProfile(changes);
+      setCurrentUser(savedUser);
+      setCurrentView(ViewState.PROFILE);
+    } catch {
+      alert("프로필 저장에 실패했습니다.");
+    }
+  };
+
+  // 로그아웃: 백엔드에서 쿠키 무효화 후 클라이언트 상태 초기화
+  const handleLogout = async () => {
+    if (window.confirm("로그아웃 하시겠습니까?")) {
+      try {
+        await logoutUser();
+      } catch {
+        // 서버 오류가 발생해도 클라이언트 상태는 초기화
+      }
+      setCurrentUser(CURRENT_USER);
+      setCurrentView(ViewState.ONBOARDING);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!window.confirm("정말로 탈퇴하시겠습니까?\n탈퇴 후 30일간 데이터가 보관되며, 이후 완전히 삭제됩니다.")) return;
+    try {
+      await withdrawUser();
+    } catch {
+      alert("회원 탈퇴에 실패했습니다. 잠시 후 다시 시도해주세요.");
+      return;
+    }
+    setCurrentUser(CURRENT_USER);
+    setCurrentView(ViewState.ONBOARDING);
+  };
+
+  const handleRejoinConfirm = async () => {
+    setShowRejoinConfirm(false);
+    const userData = await fetchCurrentUser();
+    if (userData) {
+      setCurrentUser(userData);
+    }
     setCurrentView(ViewState.HOME);
   };
 
-  const handleProfileUpdate = (updatedUser: User) => {
-    setCurrentUser(updatedUser);
-    setCurrentView(ViewState.PROFILE);
+  const handleRejoinCancel = () => {
+    setShowRejoinConfirm(false);
+    setCurrentView(ViewState.ONBOARDING);
   };
 
-  const handleLogout = () => {
-    if (window.confirm("로그아웃 하시겠습니까?")) {
-      clearTokens();
-      setCurrentUser(CURRENT_USER);
-      setCurrentView(ViewState.ONBOARDING);
+  const toggleNotification = async () => {
+    const previousValue = currentUser.notificationEnabled;
+    const nextValue = !previousValue;
+
+    // 낙관적 업데이트: 즉시 UI 상태 변경
+    setCurrentUser((prev) => ({ ...prev, notificationEnabled: nextValue }));
+
+    try {
+      const result = await updateNotificationSetting(nextValue);
+      // 서버 응답으로 상태 확정
+      setCurrentUser((prev) => ({
+        ...prev,
+        notificationEnabled: result.notificationEnabled,
+      }));
+    } catch {
+      // 실패 시 롤백
+      setCurrentUser((prev) => ({
+        ...prev,
+        notificationEnabled: previousValue,
+      }));
+      alert("알림 설정 변경에 실패했습니다. 다시 시도해주세요.");
     }
-  };
-
-  const handleDeleteAccount = () => {
-    if (window.confirm("정말로 탈퇴하시겠습니까? 모든 데이터가 삭제됩니다.")) {
-      // 탈퇴 로직 (API 호출 등)
-      alert("회원 탈퇴가 완료되었습니다.");
-      setCurrentView(ViewState.ONBOARDING);
-      // 유저 상태 초기화
-      setCurrentUser(CURRENT_USER);
-    }
-  };
-
-  const toggleNotification = () => {
-    setCurrentUser((prev) => ({
-      ...prev,
-      notificationEnabled: !prev.notificationEnabled,
-    }));
   };
 
   const createPost = async (data: any) => {
@@ -259,14 +450,6 @@ export const useAppLogic = () => {
     };
 
     try {
-      const token = getAccessToken();
-      if (!token) {
-        alert(
-          "로그인된 사용자만 모임을 개설할 수 있습니다. 소셜 로그인 후 다시 시도해주세요.",
-        );
-        return;
-      }
-
       const result = await apiCreatePost(request);
 
       // optimistic local update – still keep UX smooth until full sync
@@ -297,7 +480,6 @@ export const useAppLogic = () => {
       setPosts([newPost, ...posts]);
       setCurrentView(ViewState.HOME);
     } catch (err) {
-      console.log("accessToken is", getAccessToken());
       console.error(err);
       alert("모임 등록에 실패했습니다.");
     }
@@ -352,24 +534,42 @@ export const useAppLogic = () => {
     }
   };
 
+  const OAUTH_ERROR_MESSAGES: Record<string, string> = {
+    access_denied: "로그인을 취소했습니다.",
+    server_error: "서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
+    temporarily_unavailable: "서비스가 일시적으로 이용 불가합니다. 잠시 후 다시 시도해주세요.",
+  };
+
   // OAuth2 콜백 처리 및 로그인 상태 확인
+  // 토큰은 HttpOnly 쿠키로 백엔드가 관리하므로 JS에서 직접 접근하지 않음
+  // loginCheckDoneRef로 StrictMode 이중 실행 및 currentView 변경 시 재실행 방지
   const checkLoginStatus = useCallback(async () => {
+    if (loginCheckDoneRef.current) return;
+    loginCheckDoneRef.current = true;
+
     // 1. OAuth2 콜백 에러 처리
     const callbackError = parseCallbackError();
     if (callbackError) {
-      console.error("소셜 로그인 실패:", callbackError);
-      alert(`로그인에 실패했습니다: ${callbackError}`);
+      const message = OAUTH_ERROR_MESSAGES[callbackError] ?? "로그인에 실패했습니다.";
+      alert(message);
       cleanUpUrl();
       return;
     }
 
-    // 2. OAuth2 콜백 성공 처리 (URL에 토큰 파라미터가 있는 경우)
+    // 2. OAuth2 콜백 성공 처리 (URL에 userId, isNewUser 파라미터가 있는 경우)
     const loginData = parseCallbackParams();
     if (loginData) {
-      saveAccessToken(loginData.accessToken);
       cleanUpUrl();
 
+      // TODO: 백엔드에서 is_deleted=true 파라미터 추가 시 동작
+      if (loginData.isRejoin) {
+        setShowRejoinConfirm(true);
+        return;
+      }
+
       if (loginData.isNewUser) {
+        // userId만 임시 저장하고 프로필 설정 화면으로 이동
+        setCurrentUser((prev) => ({ ...prev, userId: loginData.userId }));
         setCurrentView(ViewState.PROFILE_SETUP);
         return;
       }
@@ -383,28 +583,17 @@ export const useAppLogic = () => {
       return;
     }
 
-    // 3. 기존 토큰 기반 로그인 상태 확인
-    const existingToken = getAccessToken();
-    if (!existingToken) {
-      console.log("Not authenticated (No token found)");
-      return;
-    }
-
+    // 3. 쿠키 기반 자동 로그인 확인 (accessToken 쿠키가 유효한 경우)
     try {
       const userData = await fetchCurrentUser();
       if (userData) {
         setCurrentUser(userData);
-        if (currentView === ViewState.ONBOARDING) {
-          setCurrentView(ViewState.HOME);
-        }
-      } else {
-        console.log("Not authenticated (Token invalid or expired)");
-        clearTokens();
+        setCurrentView(ViewState.HOME);
       }
-    } catch (error) {
-      console.error("Failed to check login status:", error);
+    } catch {
+      // 인증되지 않은 상태 — 온보딩 화면 유지
     }
-  }, [currentView]);
+  }, []);
 
   return {
     currentView,
@@ -419,7 +608,7 @@ export const useAppLogic = () => {
     goToHome,
     goToPostDetail,
     goToChatRoom,
-    toggleBookmark,
+    toggleLike,
     handleJoin,
     handleCancelJoin,
     handleApprove,
@@ -435,6 +624,7 @@ export const useAppLogic = () => {
     handleProfileSetupSubmit,
     // 프로필 관리
     currentUser,
+    isProfileLoading,
     goToProfileEdit,
     goToProfile,
     handleProfileUpdate,
@@ -442,5 +632,21 @@ export const useAppLogic = () => {
     handleDeleteAccount,
     toggleNotification,
     checkLoginStatus,
+    showRejoinConfirm,
+    handleRejoinConfirm,
+    handleRejoinCancel,
+    // 나의 신청 목록
+    myApplications,
+    myApplicationsIsLast,
+    isApplicationsLoading,
+    goToMyApplications,
+    loadMoreApplications,
+    // 찜한 모임
+    likedMeetings,
+    likedMeetingsTotalElements,
+    likedMeetingsIsLast,
+    isLikedMeetingsLoading,
+    goToBookmarks,
+    loadMoreLikedMeetings,
   };
 };

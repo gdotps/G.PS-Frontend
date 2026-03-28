@@ -1,49 +1,87 @@
-import { User, Post } from "../types";
-import { CURRENT_USER } from "../constants";
-import { getAccessToken } from "./authService";
+import { User, Post, UpdateProfileRequest, UpdateNotificationRequest, WithdrawResponse, MyApplicationsData, LikedMeetingsData } from "../types";
+import { apiClient } from "./apiClient";
+
+interface ApiResponse<T> {
+  success: boolean;
+  message: string;
+  data: T;
+}
 
 export const fetchCurrentUser = async (): Promise<User | null> => {
   try {
-    const accessToken = getAccessToken();
-    if (!accessToken) {
-      return null;
-    }
-
-    const response = await fetch("http://localhost:8080/api/v1/users/me", {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
-
-    if (!response.ok) {
-      console.error("Failed to fetch current user:", response.status);
-      return null;
-    }
-
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error("Error fetching current user:", error);
+    const res = await apiClient<ApiResponse<User>>("/api/v1/users/me");
+    return res.data;
+  } catch {
     return null;
   }
 };
 
-export const getUserInfo = (userId: number, posts: Post[]): User => {
-  if (userId === CURRENT_USER.userId) return CURRENT_USER;
+export const updateUserProfile = async (data: UpdateProfileRequest): Promise<User> => {
+  const res = await apiClient<ApiResponse<User>>("/api/v1/users/me", {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+  return res.data;
+};
 
-  // Check authors
+export const logoutUser = async (): Promise<void> => {
+  await apiClient<ApiResponse<null>>("/api/v1/auth/logout", {
+    method: "POST",
+  });
+};
+
+export const withdrawUser = async (): Promise<{ message: string; data: WithdrawResponse }> => {
+  const res = await apiClient<ApiResponse<WithdrawResponse>>("/api/v1/users/withdraw", {
+    method: "DELETE",
+  });
+  return { message: res.message, data: res.data };
+};
+
+export const updateNotificationSetting = async (
+  notificationEnabled: boolean,
+): Promise<UpdateNotificationRequest> => {
+  const res = await apiClient<ApiResponse<UpdateNotificationRequest>>(
+    "/api/v1/users/me/notifications",
+    {
+      method: "PATCH",
+      body: JSON.stringify({ notificationEnabled }),
+    },
+  );
+  return res.data;
+};
+
+export const getMyApplications = async (
+  page: number = 0,
+  size: number = 10,
+): Promise<MyApplicationsData> => {
+  const res = await apiClient<ApiResponse<MyApplicationsData>>(
+    `/api/v1/users/me/applications?page=${page}&size=${size}`,
+  );
+  return res.data;
+};
+
+export const getLikedMeetings = async (
+  page: number = 0,
+  size: number = 10,
+): Promise<LikedMeetingsData> => {
+  const res = await apiClient<ApiResponse<LikedMeetingsData>>(
+    `/api/v1/users/likes?page=${page}&size=${size}`,
+  );
+  return res.data;
+};
+
+export const getUserInfo = (userId: number, posts: Post[], currentUser: User): User => {
+  if (userId === currentUser.userId) return currentUser;
+
   const authorPost = posts.find((p) => p.authorId === userId);
   if (authorPost)
     return {
       userId: userId,
       nickname: authorPost.authorName,
       profileUrl: authorPost.authorAvatar,
-      notificationEnabled: false, // unknown
+      notificationEnabled: false,
     };
 
-  // Check applicants across all posts
   for (const p of posts) {
     if (p.applicants) {
       const applicant = p.applicants.find((a) => a.userId === userId);
@@ -51,11 +89,10 @@ export const getUserInfo = (userId: number, posts: Post[]): User => {
     }
   }
 
-  // Fallback
   return {
     userId: userId,
     nickname: "알 수 없음",
     profileUrl: `https://ui-avatars.com/api/?name=${userId}&background=random`,
-    notificationEnabled: false, // unknown
+    notificationEnabled: false,
   };
 };

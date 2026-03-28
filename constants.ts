@@ -8,7 +8,7 @@ export const CURRENT_USER: User = {
   profileUrl: "",
   //isSanggyeongJwi: true,
   //hometown: "부산",
-  notificationEnabled: true,
+  notificationEnabled: false,
 };
 
 export const MOCK_POSTS: Post[] = [
