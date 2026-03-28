@@ -10,10 +10,9 @@ interface ProfileEditProps {
 }
 
 export const ProfileEdit: React.FC<ProfileEditProps> = ({ user, onSave, onCancel }) => {
-    const [name, setName] = useState(user.name);
-    const [hometown, setHometown] = useState(user.hometown || '');
+    const [nickname, setNickname] = useState(user.nickname);
     const [introduction, setIntroduction] = useState(user.introduction || '');
-    const [avatarUrl, setAvatarUrl] = useState(user.avatarUrl || DEFAULT_AVATAR);
+    const [profileUrl, setProfileUrl] = useState(user.profileUrl || DEFAULT_AVATAR);
     const [errors, setErrors] = useState<{ [key: string]: string }>({});
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -26,7 +25,7 @@ export const ProfileEdit: React.FC<ProfileEditProps> = ({ user, onSave, onCancel
             }
             const reader = new FileReader();
             reader.onloadend = () => {
-                setAvatarUrl(reader.result as string);
+                setProfileUrl(reader.result as string);
             };
             reader.readAsDataURL(file);
         }
@@ -34,8 +33,8 @@ export const ProfileEdit: React.FC<ProfileEditProps> = ({ user, onSave, onCancel
 
     const validate = () => {
         const newErrors: { [key: string]: string } = {};
-        if (name.trim().length === 0) newErrors.name = '닉네임을 입력해주세요.';
-        if (name.trim().length > 10) newErrors.name = '닉네임은 10자 이내여야 합니다.';
+        if (nickname.trim().length === 0) newErrors.name = '닉네임을 입력해주세요.';
+        if (nickname.trim().length > 10) newErrors.name = '닉네임은 10자 이내여야 합니다.';
         if (introduction.length > 50) newErrors.introduction = '자기소개는 50자 이내여야 합니다.';
 
         setErrors(newErrors);
@@ -48,10 +47,9 @@ export const ProfileEdit: React.FC<ProfileEditProps> = ({ user, onSave, onCancel
 
         onSave({
             ...user,
-            name: name.trim(),
-            hometown: hometown.trim() || undefined,
+            nickname: nickname.trim(),
             introduction: introduction.trim() || undefined,
-            avatarUrl: avatarUrl
+            profileUrl,
         });
     };
 
@@ -76,7 +74,7 @@ export const ProfileEdit: React.FC<ProfileEditProps> = ({ user, onSave, onCancel
                         className="w-24 h-24 bg-gray-200 rounded-full overflow-hidden mb-2 relative group cursor-pointer border-2 border-transparent hover:border-gps-400 transition-colors"
                         onClick={() => fileInputRef.current?.click()}
                     >
-                        <img src={avatarUrl} alt="profile" className="w-full h-full object-cover" />
+                        <img src={profileUrl} alt="profile" className="w-full h-full object-cover" />
                         <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                             <Camera className="text-white" size={24} />
                         </div>
@@ -101,8 +99,8 @@ export const ProfileEdit: React.FC<ProfileEditProps> = ({ user, onSave, onCancel
                         <label className="block text-sm font-bold text-gray-700 mb-1">닉네임</label>
                         <input
                             type="text"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
+                            value={nickname}
+                            onChange={(e) => setNickname(e.target.value)}
                             className={`w-full p-3 bg-gray-50 rounded-xl border-2 focus:outline-none focus:bg-white transition-colors ${errors.name ? 'border-red-400 focus:border-red-500' : 'border-transparent focus:border-gps-400'}`}
                             placeholder="닉네임 입력"
                         />
