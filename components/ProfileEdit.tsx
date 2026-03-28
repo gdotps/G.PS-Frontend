@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { User } from '../types';
 import { Camera } from 'lucide-react';
 import { DEFAULT_AVATAR } from '../constants';
@@ -7,12 +7,24 @@ interface ProfileEditProps {
     user: User;
     onSave: (updatedUser: User) => void;
     onCancel: () => void;
+    isLoading?: boolean;
 }
 
-export const ProfileEdit: React.FC<ProfileEditProps> = ({ user, onSave, onCancel }) => {
+export const ProfileEdit: React.FC<ProfileEditProps> = ({ user, onSave, onCancel, isLoading = false }) => {
     const [nickname, setNickname] = useState(user.nickname);
     const [introduction, setIntroduction] = useState(user.introduction || '');
     const [profileUrl, setProfileUrl] = useState(user.profileUrl || DEFAULT_AVATAR);
+
+    // Sync form fields when fresh data arrives (isLoading transitions from true to false)
+    const prevLoadingRef = useRef(isLoading);
+    useEffect(() => {
+        if (prevLoadingRef.current && !isLoading) {
+            setNickname(user.nickname);
+            setIntroduction(user.introduction || '');
+            setProfileUrl(user.profileUrl || DEFAULT_AVATAR);
+        }
+        prevLoadingRef.current = isLoading;
+    }, [isLoading, user]);
     const [errors, setErrors] = useState<{ [key: string]: string }>({});
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -54,7 +66,7 @@ export const ProfileEdit: React.FC<ProfileEditProps> = ({ user, onSave, onCancel
     };
 
     return (
-        <div className="flex flex-col h-screen bg-white relative">
+        <div className={`flex flex-col h-screen bg-white relative${isLoading ? ' opacity-60' : ''}`}>
             <div className="flex items-center px-4 h-14 border-b border-gray-100">
                 <button onClick={onCancel} className="text-gray-500 font-bold p-2 -ml-2">
                     취소
@@ -62,7 +74,8 @@ export const ProfileEdit: React.FC<ProfileEditProps> = ({ user, onSave, onCancel
                 <h1 className="flex-1 text-center font-bold text-lg mr-8">프로필 수정</h1>
                 <button
                     onClick={handleSubmit}
-                    className="text-gps-600 font-bold p-2 -mr-2"
+                    disabled={isLoading}
+                    className="text-gps-600 font-bold p-2 -mr-2 disabled:opacity-40"
                 >
                     저장
                 </button>
@@ -105,7 +118,8 @@ export const ProfileEdit: React.FC<ProfileEditProps> = ({ user, onSave, onCancel
                             value={nickname}
                             onChange={(e) => setNickname(e.target.value)}
                             maxLength={10}
-                            className={`w-full p-3 bg-gray-50 rounded-xl border-2 focus:outline-none focus:bg-white transition-colors ${errors.name ? 'border-red-400 focus:border-red-500' : 'border-transparent focus:border-gps-400'}`}
+                            disabled={isLoading}
+                            className={`w-full p-3 bg-gray-50 rounded-xl border-2 focus:outline-none focus:bg-white transition-colors disabled:cursor-not-allowed ${errors.name ? 'border-red-400 focus:border-red-500' : 'border-transparent focus:border-gps-400'}`}
                             placeholder="닉네임 입력"
                         />
                         {errors.name && <p className="text-red-500 text-xs mt-1 ml-1">{errors.name}</p>}
@@ -120,7 +134,8 @@ export const ProfileEdit: React.FC<ProfileEditProps> = ({ user, onSave, onCancel
                             onChange={(e) => setIntroduction(e.target.value)}
                             rows={3}
                             maxLength={50}
-                            className={`w-full p-3 bg-gray-50 rounded-xl border-2 focus:outline-none focus:bg-white transition-colors resize-none ${errors.introduction ? 'border-red-400 focus:border-red-500' : 'border-transparent focus:border-gps-400'}`}
+                            disabled={isLoading}
+                            className={`w-full p-3 bg-gray-50 rounded-xl border-2 focus:outline-none focus:bg-white transition-colors resize-none disabled:cursor-not-allowed ${errors.introduction ? 'border-red-400 focus:border-red-500' : 'border-transparent focus:border-gps-400'}`}
                             placeholder="자신을 자유롭게 소개해보세요."
                         />
                         {errors.introduction && <p className="text-red-500 text-xs mt-1 ml-1">{errors.introduction}</p>}

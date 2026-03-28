@@ -47,6 +47,7 @@ export default function App() {
     handleProfileSetupSubmit,
     // Profile Management
     currentUser,
+    isProfileLoading,
     goToProfileEdit,
     goToProfile,
     handleProfileUpdate,
@@ -86,6 +87,7 @@ export default function App() {
             user={currentUser}
             onSave={handleProfileUpdate}
             onCancel={goToProfile}
+            isLoading={isProfileLoading}
           />
         );
       case ViewState.HOME:
@@ -155,6 +157,7 @@ export default function App() {
             onLogout={handleLogout}
             onDeleteAccount={handleDeleteAccount}
             onToggleNotification={toggleNotification}
+            isLoading={isProfileLoading}
           />
         );
       case ViewState.NOTIFICATIONS:

@@ -12,6 +12,7 @@ interface ProfileViewProps {
   onLogout: () => void;
   onDeleteAccount: () => void;
   onToggleNotification: () => void;
+  isLoading?: boolean;
 }
 
 export const ProfileView: React.FC<ProfileViewProps> = ({
@@ -22,10 +23,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onEditProfile,
   onLogout,
   onDeleteAccount,
-  onToggleNotification
+  onToggleNotification,
+  isLoading = false,
 }) => {
   return (
-    <div className="pt-20 px-4 text-center">
+    <div className={`pt-20 px-4 text-center${isLoading ? ' opacity-60 pointer-events-none' : ''}`}>
       <div className="w-24 h-24 bg-gray-200 rounded-full mx-auto mb-4 overflow-hidden">
         <img src={user.profileUrl || DEFAULT_AVATAR} alt="me" className="w-full h-full object-cover" />
       </div>

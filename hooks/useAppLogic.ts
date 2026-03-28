@@ -47,6 +47,7 @@ export const useAppLogic = () => {
     useState<Notification[]>(MOCK_NOTIFICATIONS);
   const [bookmarkedIds, setBookmarkedIds] = useState<number[]>([]);
   const [showRejoinConfirm, setShowRejoinConfirm] = useState(false);
+  const [isProfileLoading, setIsProfileLoading] = useState(false);
 
   // 토큰 갱신 실패 시 apiClient가 발생시키는 이벤트 처리
   useEffect(() => {
@@ -76,8 +77,30 @@ export const useAppLogic = () => {
     setSelectedChatId(chatId);
     setCurrentView(ViewState.CHAT_ROOM);
   };
-  const goToProfileEdit = () => setCurrentView(ViewState.PROFILE_EDIT);
-  const goToProfile = () => setCurrentView(ViewState.PROFILE);
+  const refreshCurrentUser = async () => {
+    setIsProfileLoading(true);
+    try {
+      const userData = await fetchCurrentUser();
+      if (userData !== null) {
+        setCurrentUser(userData);
+      }
+    } catch {
+      // fetchCurrentUser already swallows errors internally;
+      // this catch handles any unexpected rejections without surfacing them to the UI.
+    } finally {
+      setIsProfileLoading(false);
+    }
+  };
+
+  const goToProfileEdit = () => {
+    setCurrentView(ViewState.PROFILE_EDIT);
+    refreshCurrentUser();
+  };
+
+  const goToProfile = () => {
+    setCurrentView(ViewState.PROFILE);
+    refreshCurrentUser();
+  };
 
   // 액션
   const toggleBookmark = (postId: number) => {
@@ -506,6 +529,7 @@ export const useAppLogic = () => {
     handleProfileSetupSubmit,
     // 프로필 관리
     currentUser,
+    isProfileLoading,
     goToProfileEdit,
     goToProfile,
     handleProfileUpdate,

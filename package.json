@@ -19,6 +19,8 @@
     "react-naver-maps": "^0.1.4"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/navermaps": "^3.9.1",
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
