@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@stomp/stompjs": "^7.2.1",
@@ -17,12 +20,17 @@
     "react-naver-maps": "^0.1.4"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/navermaps": "^3.9.1",
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "@vitest/coverage-v8": "^4.1.2",
+    "jsdom": "^29.0.1",
     "typescript": "~5.8.2",
     "vite": "^6.2.0",
     "vite-plugin-html": "^3.2.2",
-    "vite-plugin-html-config": "^2.0.2"
+    "vite-plugin-html-config": "^2.0.2",
+    "vitest": "^4.1.2"
   }
 }

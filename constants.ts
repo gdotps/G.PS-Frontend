@@ -3,12 +3,12 @@ import { Post, ChatRoom, User, Notification } from "./types";
 export const DEFAULT_AVATAR = "/default_profile.png";
 
 export const CURRENT_USER: User = {
-  id: 1,
-  name: "상경한꿈돌이",
-  avatarUrl: "",
-  isSanggyeongJwi: true,
-  hometown: "부산",
-  notificationEnabled: true,
+  userId: 1,
+  nickname: "상경한꿈돌이",
+  profileUrl: "",
+  //isSanggyeongJwi: true,
+  //hometown: "부산",
+  notificationEnabled: false,
 };
 
 export const MOCK_POSTS: Post[] = [

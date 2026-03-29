@@ -1,11 +1,16 @@
 // 인증 관련 서비스 (카카오 소셜 로그인)
+// 토큰(accessToken, refreshToken)은 백엔드가 HttpOnly 쿠키로 관리하므로
+// 프론트엔드에서 직접 읽거나 저장하지 않습니다.
 
-const API_BASE_URL = "http://localhost:8080";
+import { getApiBaseUrl } from "./apiClient";
 
-// 로그인 응답 타입
-export interface LoginResponse {
-    accessToken: string;
+// OAuth2 콜백 파라미터 타입
+// 백엔드는 토큰을 쿠키로 전달하고, URL에는 userId와 isNewUser만 포함됩니다.
+// TODO: 탈퇴 후 재가입 시 백엔드에서 is_deleted=true 파라미터 추가 예정
+export interface LoginCallbackData {
     isNewUser: boolean;
+    /** @todo 백엔드 is_deleted=true 파라미터 연동 후 활성화 */
+    isRejoin: boolean;
     userId: number;
 }
 
@@ -39,37 +44,40 @@ const getAllCallbackParams = (): URLSearchParams => {
 };
 
 // 카카오 로그인 URL 생성
-// 백엔드가 spring.custom.frontend-url 설정값으로 리다이렉트
+// 백엔드 spring.custom.frontend-url 설정으로 콜백 처리
 export const getKakaoLoginUrl = (): string => {
-    return `${API_BASE_URL}/oauth2/authorization/kakao`;
+    return `${getApiBaseUrl()}/oauth2/authorization/kakao`;
 };
 
 // 구글 로그인 URL 생성
 export const getGoogleLoginUrl = (): string => {
-    return `${API_BASE_URL}/oauth2/authorization/google`;
+    return `${getApiBaseUrl()}/oauth2/authorization/google`;
 };
 
-// URL 쿼리 파라미터에서 로그인 응답 데이터 추출
-// 백엔드 전달 파라미터: accessToken, userId, isNewUser
-// refreshToken은 HttpOnly 쿠키로 자동 저장됨
-export const parseCallbackParams = (): LoginResponse | null => {
+// URL 쿼리 파라미터에서 OAuth2 콜백 데이터 추출
+// 백엔드 전달 파라미터: userId, isNewUser, isRejoin(선택)
+// accessToken, refreshToken은 HttpOnly 쿠키로 자동 저장됨
+export const parseCallbackParams = (): LoginCallbackData | null => {
     const params = getAllCallbackParams();
 
-    const accessToken = pickParam(params, ["accessToken", "access_token", "token"]);
-    const userIdRaw = pickParam(params, ["userId", "user_id", "id"]);
-    const isNewUserRaw = pickParam(params, ["isNewUser", "is_new_user", "newUser"]);
+    const userId = pickParam(params, ["userId", "user_id", "id"]);
+    const isNewUser = pickParam(params, ["isNewUser", "is_new_user", "newUser"]);
 
-    const userId = userIdRaw ? Number(userIdRaw) : NaN;
-    const isNewUser = isNewUserRaw ? ["true", "1", "yes", "y"].includes(isNewUserRaw.toLowerCase()) : false;
+    if (!userId || isNewUser === null) {
+        return null;
+    }
 
-    if (!accessToken || !Number.isFinite(userId)) {
+    const parsedId = Number(userId);
+    if (!Number.isInteger(parsedId) || parsedId <= 0) {
         return null;
     }
 
     return {
-        accessToken,
-        isNewUser,
-        userId,
+        isNewUser: isNewUser === "true",
+        // TODO: 백엔드에서 is_deleted=true 파라미터 추가 시 아래 주석 해제
+        // isRejoin: params.get("is_deleted") === "true",
+        isRejoin: false,
+        userId: parsedId,
     };
 };
 
@@ -79,23 +87,11 @@ export const parseCallbackError = (): string | null => {
     return pickParam(params, ["error", "error_description"]);
 };
 
-// AccessToken 저장 (localStorage)
-// RefreshToken은 백엔드가 HttpOnly 쿠키로 관리
-export const saveAccessToken = (accessToken: string): void => {
-    localStorage.setItem("accessToken", accessToken);
-};
-
-// 액세스 토큰 조회
-export const getAccessToken = (): string | null => {
-    return localStorage.getItem("accessToken");
-};
-
-// 토큰 삭제 (로그아웃 시)
-export const clearTokens = (): void => {
-    localStorage.removeItem("accessToken");
-};
-
-// URL 파라미터 정리 (토큰 정보 노출 방지)
+// URL 파라미터 정리 (콜백 파라미터 노출 방지)
 export const cleanUpUrl = (): void => {
     window.history.replaceState({}, document.title, window.location.pathname);
 };
+
+// 하위 호환 유지용 — 토큰은 HttpOnly 쿠키로 관리되므로 항상 null 반환
+// postService 등 기존 코드와의 호환성을 위해 유지합니다.
+export const getAccessToken = (): string | null => null;
