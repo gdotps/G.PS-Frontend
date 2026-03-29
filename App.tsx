@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { BottomNav } from './components/BottomNav';
 import { useAppLogic } from './hooks/useAppLogic';
-import { getUserInfo } from './services/userService';
 import { ViewState } from './types';
 
 // Components
@@ -24,7 +23,8 @@ export default function App() {
     currentView, setCurrentView,
     posts, chats, notifications, bookmarkedIds,
     selectedPost, selectedChatId,
-    goToHome, goToPostDetail, goToChatRoom,
+    selectedChatParticipants,
+    goToHome, goToPostDetail, goToChatList, goToChatRoom,
     toggleBookmark,
     handleJoin, handleCancelJoin,
     handleApprove, handleReject,
@@ -92,13 +92,15 @@ export default function App() {
       case ViewState.MAP:
         return <MapView posts={posts} onViewPost={goToPostDetail} />;
       case ViewState.CHAT_LIST:
-        return <ChatList chats={chats} onSelectChat={goToChatRoom} />;
+        return <ChatList chats={chats} posts={posts} onSelectChat={goToChatRoom} />;
       case ViewState.CHAT_ROOM:
         const currentChat = chats.find(c => c.id === selectedChatId);
         return currentChat ? (
           <ChatRoomView
             chatRoom={currentChat}
-            participantsInfo={currentChat.participants.map(uid => getUserInfo(uid, posts))}
+            participantsInfo={selectedChatParticipants}
+            currentUserId={currentUser.id}
+            currentUserName={currentUser.name}
             onBack={() => setCurrentView(ViewState.CHAT_LIST)}
             onSendMessage={handleSendMessage}
             onLeave={() => handleLeaveChat(currentChat.id)}
@@ -145,10 +147,18 @@ export default function App() {
 
   const showNav = [ViewState.HOME, ViewState.MAP, ViewState.CHAT_LIST, ViewState.PROFILE].includes(currentView);
 
+  const handleChangeView = (view: ViewState) => {
+    if (view === ViewState.CHAT_LIST) {
+      goToChatList();
+      return;
+    }
+    setCurrentView(view);
+  };
+
   return (
     <div className="bg-white min-h-screen max-w-md mx-auto shadow-2xl overflow-hidden relative font-sans text-gray-900">
       {renderContent()}
-      {showNav && <BottomNav currentView={currentView} onChangeView={setCurrentView} />}
+      {showNav && <BottomNav currentView={currentView} onChangeView={handleChangeView} />}
     </div>
   );
 }
