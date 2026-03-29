@@ -2,6 +2,8 @@ import React, { useState, useRef } from "react";
 import { Header } from "./Header";
 import { AddressSearchModal } from "./AddressSearchModal";
 import { ChevronLeft, Camera, X } from "lucide-react";
+import { createChatRoom } from "../services/chatService";
+import { PostRequest } from "../services/postService";
 
 export const CreatePostView: React.FC<{
   onCancel: () => void;
@@ -84,7 +86,7 @@ export const CreatePostView: React.FC<{
 
     try {
       setSubmitting(true);
-      await onCreate({
+      const postResponse = await onCreate({
         title,
         content: description,
         meetingTime,
@@ -94,7 +96,29 @@ export const CreatePostView: React.FC<{
         meetingType: meetupType,
         category: tag,
       });
-      // the parent hook will navigate back to home upon success
+
+      console.log("게시글 생성 응답 데이터:", postResponse.postId || postResponse.id);
+
+      // 2. 채팅방 생성 로직 (게시글 생성 성공 후 postId가 있을 때만)
+      if (postResponse && (postResponse.postId || postResponse.id)) {
+        // 일부 API 설계에 따라 postId가 아닌 id로 올 수 있으므로 둘 다 체크
+        const finalPostId = postResponse.postId || postResponse.id;
+
+        try {
+          await createChatRoom({
+            title: `${title}`, 
+            postId: finalPostId,
+          });
+          console.log("채팅방 생성 성공!");
+        } catch (chatError) {
+          console.error("채팅방 생성 프로세스 실패:", chatError);
+          alert("게시글은 등록되었으나 채팅방 생성에 실패했습니다.");
+        }
+      } else {
+        console.warn(
+          "postId를 응답에서 찾을 수 없어 채팅방 생성을 건너뜁니다.",
+        );
+      }
     } catch (e) {
       console.error(e);
       alert("모임 개설 중 오류가 발생했습니다.");
