@@ -58,8 +58,9 @@ export interface Post {
 }
 
 export interface Message {
-  id: number;
+  id: number | string;
   senderId: number;
+  senderUsername?: string;
   text: string;
   timestamp: number;
   isSystem?: boolean;

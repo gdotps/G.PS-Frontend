@@ -1,10 +1,5 @@
-import { useCallback, useState } from "react";
-import {
-  CURRENT_USER,
-  MOCK_CHATS,
-  MOCK_NOTIFICATIONS,
-  MOCK_POSTS,
-} from "../constants";
+import { useCallback, useEffect, useState } from "react";
+import { CURRENT_USER, MOCK_NOTIFICATIONS, MOCK_POSTS } from "../constants";
 import {
   cleanUpUrl,
   clearTokens,
@@ -17,6 +12,15 @@ import {
   createPost as apiCreatePost,
   PostRequest,
 } from "../services/postService";
+import {
+  ChatIncomingMessage,
+  getChatRoomHistory,
+  getChatRoomUsers,
+  getMyChatRooms,
+  sendChatMessage,
+  subscribeChatRoom,
+  unsubscribeChatRoom,
+} from "../services/chatService";
 import {
   ChatRoom,
   Comment,
@@ -35,10 +39,52 @@ export const useAppLogic = () => {
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [selectedChatId, setSelectedChatId] = useState<number | null>(null);
   const [posts, setPosts] = useState<Post[]>(MOCK_POSTS);
-  const [chats, setChats] = useState<ChatRoom[]>(MOCK_CHATS);
   const [notifications, setNotifications] =
     useState<Notification[]>(MOCK_NOTIFICATIONS);
   const [bookmarkedIds, setBookmarkedIds] = useState<number[]>([]);
+  const [chats, setChats] = useState<ChatRoom[]>([]);
+  const [selectedChatParticipants, setSelectedChatParticipants] = useState<User[]>([]);
+
+  const mapIncomingMessageToState = (item: ChatIncomingMessage): Message => ({
+    id: item.id,
+    senderId: item.sender,
+    senderUsername: item.senderUsername,
+    text: item.message,
+    timestamp:
+      typeof item.timestamp === "number"
+        ? item.timestamp
+        : new Date(item.timestamp).getTime(),
+  });
+
+  const appendIncomingMessage = useCallback((incoming: ChatIncomingMessage) => {
+    const incomingMessage = mapIncomingMessageToState(incoming);
+    const incomingRoomId = Number(incoming.roomId);
+
+    setChats((prev) =>
+      prev.map((chat) => {
+        if (chat.id !== incomingRoomId) return chat;
+
+        const alreadyExists = chat.messages.some(
+          (message) => String(message.id) === String(incomingMessage.id),
+        );
+        if (alreadyExists) return chat;
+
+        return {
+          ...chat,
+          messages: [...chat.messages, incomingMessage],
+          lastMessage: incomingMessage.text,
+          lastMessageTime: new Date(incomingMessage.timestamp).toLocaleTimeString(
+            [],
+            {
+              hour: "2-digit",
+              minute: "2-digit",
+            },
+          ),
+        };
+      }),
+    );
+  }, []);
+
 
   // 네비게이션 헬퍼
   const goToHome = () => setCurrentView(ViewState.HOME);
@@ -47,10 +93,6 @@ export const useAppLogic = () => {
   const goToPostDetail = (post: Post) => {
     setSelectedPost(post);
     setCurrentView(ViewState.POST_DETAIL);
-  };
-  const goToChatRoom = (chatId: number) => {
-    setSelectedChatId(chatId);
-    setCurrentView(ViewState.CHAT_ROOM);
   };
   const goToProfileEdit = () => setCurrentView(ViewState.PROFILE_EDIT);
   const goToProfile = () => setCurrentView(ViewState.PROFILE);
@@ -62,6 +104,119 @@ export const useAppLogic = () => {
         ? prev.filter((id) => id !== postId)
         : [...prev, postId],
     );
+  };
+  // 채팅방 목록 로드 함수 추가
+  const loadChatRooms = useCallback(async () => {
+    try {
+      const data = await getMyChatRooms();
+      // 불필요한 필드 제거하고 id, title, postId만 저장
+      setChats(data.map(room => ({
+        id: room.id,
+        title: room.title,
+        postId: room.postId,
+        lastMessage: "",
+        lastMessageTime: "",
+        unreadCount: 0,
+        participants: [],
+        messages: [],
+      })));
+    } catch (err) {
+      console.error("채팅방 호출 에러:", err);
+    }
+  }, []);
+
+  // 네비게이션: 채팅 목록으로 갈 때 호출
+  const goToChatList = () => {
+    loadChatRooms(); // API 호출 실행
+    setCurrentView(ViewState.CHAT_LIST);
+  };
+  
+  const goToChatRoom = async (chatId: number) => {
+    unsubscribeChatRoom();
+    setSelectedChatId(chatId);
+    try {
+      const [users, history] = await Promise.all([
+        getChatRoomUsers(chatId),
+        getChatRoomHistory(chatId),
+      ]);
+
+      const mappedMessages: Message[] = history.map((item) => ({
+        id: item.id,
+        senderId: item.sender,
+        senderUsername: item.senderUsername,
+        text:
+          item.messageType === "TEXT"
+            ? item.message
+            : item.message || "[이미지 메시지]",
+        timestamp: new Date(item.timestamp).getTime(),
+      }));
+
+      setChats((prev) =>
+        prev.map((chat) =>
+          chat.id === chatId
+            ? {
+                ...chat,
+                messages: mappedMessages,
+                lastMessage:
+                  mappedMessages.length > 0
+                    ? mappedMessages[mappedMessages.length - 1].text
+                    : "",
+                lastMessageTime:
+                  mappedMessages.length > 0
+                    ? new Date(
+                        mappedMessages[mappedMessages.length - 1].timestamp,
+                      ).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : "",
+              }
+            : chat,
+        ),
+      );
+
+      const mappedParticipants: User[] = users.map((user) => ({
+        id: user.id,
+        name: user.nickname,
+        avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.nickname)}&background=F3F4F6&color=111827`,
+        isSanggyeongJwi: false,
+        hometown: user.isManager ? "방장" : "참여자",
+      }));
+
+      setSelectedChatParticipants(
+        mappedParticipants.length > 0
+          ? mappedParticipants
+          : [
+              {
+                ...currentUser,
+                hometown: currentUser.hometown || "참여자",
+              },
+            ],
+      );
+
+        await subscribeChatRoom(chatId, appendIncomingMessage);
+    } catch (err) {
+      console.error("채팅방 유저 호출 에러:", err);
+      setSelectedChatParticipants([
+        {
+          ...currentUser,
+          hometown: currentUser.hometown || "참여자",
+        },
+      ]);
+      setChats((prev) =>
+        prev.map((chat) =>
+          chat.id === chatId
+            ? {
+                ...chat,
+                messages: [],
+                lastMessage: "",
+                lastMessageTime: "",
+              }
+            : chat,
+        ),
+      );
+    }
+    setCurrentView(ViewState.CHAT_ROOM);
   };
 
   const handleJoin = () => {
@@ -152,33 +307,35 @@ export const useAppLogic = () => {
 
   const handleSendMessage = async (text: string) => {
     if (!selectedChatId) return;
-    const newMessage: Message = {
-      id: Date.now(), // string에서 이걸로 변경됨
-      senderId: currentUser.id,
-      text: text,
-      timestamp: Date.now(),
-    };
-    const updatedChats = chats.map((chat) => {
-      if (chat.id === selectedChatId) {
-        return {
-          ...chat,
-          messages: [...chat.messages, newMessage],
-          lastMessage: text,
-          lastMessageTime: "방금",
-          unreadCount: 0,
-        };
-      }
-      return chat;
-    });
-    setChats(updatedChats);
+    try {
+      await sendChatMessage({
+        roomId: selectedChatId,
+        senderId: currentUser.id,
+        message: text,
+        messageType: "TEXT",
+        imageUrl: null,
+      });
+    } catch (error) {
+      console.error("메시지 전송 실패:", error);
+      alert("메시지 전송에 실패했습니다. 다시 시도해주세요.");
+    }
   };
 
   const handleLeaveChat = (chatId: number) => {
+    if (selectedChatId === chatId) {
+      unsubscribeChatRoom();
+    }
     const leftChats = chats.filter((c) => c.id !== chatId);
     setChats(leftChats);
     setCurrentView(ViewState.CHAT_LIST);
     setSelectedChatId(null);
   };
+
+  useEffect(() => {
+    return () => {
+      unsubscribeChatRoom();
+    };
+  }, []);
 
   const handleProfileSetupSubmit = (data: {
     nickname: string;
@@ -276,6 +433,7 @@ export const useAppLogic = () => {
       };
       setPosts([newPost, ...posts]);
       setCurrentView(ViewState.HOME);
+      return result;
     } catch (err) {
       console.log("accessToken is", getAccessToken());
       console.error(err);
@@ -319,7 +477,7 @@ export const useAppLogic = () => {
     // 3. 기존 토큰 기반 로그인 상태 확인
     const existingToken = getAccessToken();
     if (!existingToken) {
-      console.log("Not authenticated (No token found)");
+      console.debug("Not authenticated (No token found)");
       return;
     }
 
@@ -327,13 +485,20 @@ export const useAppLogic = () => {
       const response = await fetch("http://localhost:8080/auth", {
         method: "GET",
         headers: {
-          "Content-Type": "application/json",
           Authorization: `Bearer ${existingToken}`,
         },
         credentials: "include",
       });
 
       if (response.ok) {
+        const contentType = response.headers.get("content-type") || "";
+        if (!contentType.includes("application/json")) {
+          const bodyPreview = (await response.text()).slice(0, 120);
+          console.warn("Unexpected /auth response type:", contentType, bodyPreview);
+          clearTokens();
+          return;
+        }
+
         const result = await response.json();
         if (result.data) {
           const userData = result.data;
@@ -369,6 +534,9 @@ export const useAppLogic = () => {
     bookmarkedIds,
     selectedPost,
     selectedChatId,
+    selectedChatParticipants,
+    goToChatList,
+    loadChatRooms,
     // 핸들러
     goToHome,
     goToPostDetail,
