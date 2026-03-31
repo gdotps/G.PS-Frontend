@@ -1,12 +1,12 @@
 import { useEffect } from "react";
 import { BottomNav } from "./components/BottomNav";
 import { useAppLogic } from "./hooks/useAppLogic";
-import { getUserInfo } from "./services/userService";
 import { ViewState } from "./types";
 
 // Components
 import { ApplicantListView } from "./components/ApplicantListView";
 import { BookmarksView } from "./components/BookmarksView";
+import { MyApplicationsView } from "./components/MyApplicationsView";
 import { ChatList } from "./components/ChatList";
 import { ChatRoomView } from "./components/ChatRoomView";
 import { CreatePostView } from "./components/CreatePostView";
@@ -18,6 +18,7 @@ import { PostDetail } from "./components/PostDetail";
 import { ProfileEdit } from "./components/ProfileEdit";
 import { ProfileSetup } from "./components/ProfileSetup";
 import { ProfileView } from "./components/ProfileView";
+import { ConfirmModal } from "./components/ConfirmModal";
 
 export default function App() {
   const {
@@ -29,16 +30,20 @@ export default function App() {
     bookmarkedIds,
     selectedPost,
     selectedChatId,
+    selectedChatParticipants,
+    selectedChatIsManager,
     goToHome,
     goToPostDetail,
+    goToChatList,
     goToChatRoom,
-    toggleBookmark,
+    toggleLike,
     handleJoin,
     handleCancelJoin,
     handleApprove,
     handleReject,
     handleAddComment,
     handleSendMessage,
+    handleDeleteMessage,
     handleLeaveChat,
     createPost,
     // Profile Setup
@@ -46,6 +51,7 @@ export default function App() {
     handleProfileSetupSubmit,
     // Profile Management
     currentUser,
+    isProfileLoading,
     goToProfileEdit,
     goToProfile,
     handleProfileUpdate,
@@ -56,6 +62,20 @@ export default function App() {
     goToEditPost,
     editPost,
     handleDeletePost,
+    showRejoinConfirm,
+    handleRejoinConfirm,
+    handleRejoinCancel,
+    myApplications,
+    myApplicationsIsLast,
+    isApplicationsLoading,
+    goToMyApplications,
+    loadMoreApplications,
+    likedMeetings,
+    likedMeetingsTotalElements,
+    likedMeetingsIsLast,
+    isLikedMeetingsLoading,
+    goToBookmarks,
+    loadMoreLikedMeetings,
   } = useAppLogic();
 
   useEffect(() => {
@@ -85,6 +105,7 @@ export default function App() {
             user={currentUser}
             onSave={handleProfileUpdate}
             onCancel={goToProfile}
+            isLoading={isProfileLoading}
           />
         );
       case ViewState.HOME:
@@ -102,7 +123,7 @@ export default function App() {
             post={selectedPost}
             currentUser={currentUser}
             isBookmarked={bookmarkedIds.includes(selectedPost.id)}
-            onToggleBookmark={() => toggleBookmark(selectedPost.id)}
+            onToggleBookmark={() => toggleLike(selectedPost.id)}
             onBack={goToHome}
             onJoin={handleJoin}
             onCancelJoin={handleCancelJoin}
@@ -116,17 +137,21 @@ export default function App() {
       case ViewState.MAP:
         return <MapView posts={posts} onViewPost={goToPostDetail} />;
       case ViewState.CHAT_LIST:
-        return <ChatList chats={chats} onSelectChat={goToChatRoom} />;
+        return (
+          <ChatList chats={chats} posts={posts} onSelectChat={goToChatRoom} />
+        );
       case ViewState.CHAT_ROOM:
         const currentChat = chats.find((c) => c.id === selectedChatId);
         return currentChat ? (
           <ChatRoomView
             chatRoom={currentChat}
-            participantsInfo={currentChat.participants.map((uid) =>
-              getUserInfo(uid, posts),
-            )}
+            participantsInfo={selectedChatParticipants}
+            currentUserId={currentUser.userId}
+            currentUserName={currentUser.nickname}
+            isCurrentUserManager={selectedChatIsManager}
             onBack={() => setCurrentView(ViewState.CHAT_LIST)}
             onSendMessage={handleSendMessage}
+            onDeleteMessage={handleDeleteMessage}
             onLeave={() => handleLeaveChat(currentChat.id)}
           />
         ) : (
@@ -148,13 +173,15 @@ export default function App() {
         return (
           <ProfileView
             user={currentUser}
-            bookmarkCount={bookmarkedIds.length}
-            onViewBookmarks={() => setCurrentView(ViewState.BOOKMARKS)}
+            bookmarkCount={likedMeetingsTotalElements}
+            onViewBookmarks={goToBookmarks}
             onViewApplicants={() => setCurrentView(ViewState.APPLICANTS)}
+            onViewMyApplications={goToMyApplications}
             onEditProfile={goToProfileEdit}
             onLogout={handleLogout}
             onDeleteAccount={handleDeleteAccount}
             onToggleNotification={toggleNotification}
+            isLoading={isProfileLoading}
           />
         );
       case ViewState.NOTIFICATIONS:
@@ -162,13 +189,12 @@ export default function App() {
           <NotificationView notifications={notifications} onBack={goToHome} />
         );
       case ViewState.BOOKMARKS:
-        const bookmarkedPosts = posts.filter((p) =>
-          bookmarkedIds.includes(p.id),
-        );
         return (
           <BookmarksView
-            posts={bookmarkedPosts}
-            onViewPost={goToPostDetail}
+            meetings={likedMeetings}
+            isLoading={isLikedMeetingsLoading}
+            isLast={likedMeetingsIsLast}
+            onLoadMore={loadMoreLikedMeetings}
             onBack={() => setCurrentView(ViewState.PROFILE)}
           />
         );
@@ -178,6 +204,16 @@ export default function App() {
             posts={posts}
             onBack={() => setCurrentView(ViewState.PROFILE)}
             onApprove={handleApprove}
+          />
+        );
+      case ViewState.MY_APPLICATIONS:
+        return (
+          <MyApplicationsView
+            applications={myApplications}
+            isLoading={isApplicationsLoading}
+            isLast={myApplicationsIsLast}
+            onLoadMore={loadMoreApplications}
+            onBack={() => setCurrentView(ViewState.PROFILE)}
           />
         );
       default:
@@ -192,11 +228,26 @@ export default function App() {
     ViewState.PROFILE,
   ].includes(currentView);
 
+  const handleChangeView = (view: ViewState) => {
+    if (view === ViewState.CHAT_LIST) {
+      goToChatList();
+      return;
+    }
+    setCurrentView(view);
+  };
+
   return (
     <div className="bg-white min-h-screen max-w-md mx-auto shadow-2xl overflow-hidden relative font-sans text-gray-900">
       {renderContent()}
       {showNav && (
-        <BottomNav currentView={currentView} onChangeView={setCurrentView} />
+        <BottomNav currentView={currentView} onChangeView={handleChangeView} />
+      )}
+      {showRejoinConfirm && (
+        <ConfirmModal
+          message="재가입하시겠습니까?"
+          onConfirm={handleRejoinConfirm}
+          onCancel={handleRejoinCancel}
+        />
       )}
     </div>
   );
