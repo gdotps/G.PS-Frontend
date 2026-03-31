@@ -96,6 +96,8 @@ export interface Message {
   senderUsername?: string;
   text: string;
   timestamp: number;
+  readByUserIds?: number[];
+  deleted?: boolean;
   isSystem?: boolean;
 }
 
