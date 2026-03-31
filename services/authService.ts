@@ -14,6 +14,35 @@ export interface LoginCallbackData {
     userId: number;
 }
 
+const pickParam = (params: URLSearchParams, keys: string[]): string | null => {
+    for (const key of keys) {
+        const value = params.get(key);
+        if (value !== null && value !== "") return value;
+    }
+    return null;
+};
+
+const getAllCallbackParams = (): URLSearchParams => {
+    const merged = new URLSearchParams();
+
+    const queryParams = new URLSearchParams(window.location.search);
+    queryParams.forEach((value, key) => {
+        merged.set(key, value);
+    });
+
+    const hash = window.location.hash.startsWith("#")
+        ? window.location.hash.slice(1)
+        : window.location.hash;
+    if (hash) {
+        const hashParams = new URLSearchParams(hash);
+        hashParams.forEach((value, key) => {
+            if (!merged.has(key)) merged.set(key, value);
+        });
+    }
+
+    return merged;
+};
+
 // 카카오 로그인 URL 생성
 // 백엔드 spring.custom.frontend-url 설정으로 콜백 처리
 export const getKakaoLoginUrl = (): string => {
@@ -29,10 +58,10 @@ export const getGoogleLoginUrl = (): string => {
 // 백엔드 전달 파라미터: userId, isNewUser, isRejoin(선택)
 // accessToken, refreshToken은 HttpOnly 쿠키로 자동 저장됨
 export const parseCallbackParams = (): LoginCallbackData | null => {
-    const params = new URLSearchParams(window.location.search);
+    const params = getAllCallbackParams();
 
-    const userId = params.get("userId");
-    const isNewUser = params.get("isNewUser");
+    const userId = pickParam(params, ["userId", "user_id", "id"]);
+    const isNewUser = pickParam(params, ["isNewUser", "is_new_user", "newUser"]);
 
     if (!userId || isNewUser === null) {
         return null;
@@ -54,8 +83,8 @@ export const parseCallbackParams = (): LoginCallbackData | null => {
 
 // URL에서 에러 파라미터 추출
 export const parseCallbackError = (): string | null => {
-    const params = new URLSearchParams(window.location.search);
-    return params.get("error");
+    const params = getAllCallbackParams();
+    return pickParam(params, ["error", "error_description"]);
 };
 
 // URL 파라미터 정리 (콜백 파라미터 노출 방지)

@@ -2,10 +2,12 @@ import React, { useState, useRef, useEffect } from "react";
 import { Header } from "./Header";
 import { AddressSearchModal } from "./AddressSearchModal";
 import { ChevronLeft, Camera, X } from "lucide-react";
+import { createChatRoom } from "../services/chatService";
+import { PostRequest } from "../services/postService";
 
 export const CreatePostView: React.FC<{
   onCancel: () => void;
-  onCreate: (post: any) => void | Promise<void>;
+  onCreate: (post: any) => any | Promise<any>;
   initialPost?: any;
 }> = ({ onCancel, onCreate, initialPost }) => {
   const [showAddressSearch, setShowAddressSearch] = useState(false);
@@ -111,7 +113,7 @@ export const CreatePostView: React.FC<{
 
     try {
       setSubmitting(true);
-      await onCreate({
+      const postResponse = await onCreate({
         id: initialPost?.id, // ID 포함 전달 (수정 시 필요)
         title,
         content: description,
@@ -122,6 +124,20 @@ export const CreatePostView: React.FC<{
         meetingType: meetupType,
         category: tag,
       });
+
+      // 신규 생성일 때만 채팅방 자동 생성
+      if (!initialPost && postResponse && (postResponse.postId || postResponse.id)) {
+        const finalPostId = postResponse.postId || postResponse.id;
+        try {
+          await createChatRoom({
+            title,
+            postId: finalPostId,
+          });
+        } catch (chatError) {
+          console.error("채팅방 생성 프로세스 실패:", chatError);
+          alert("게시글은 등록되었으나 채팅방 생성에 실패했습니다.");
+        }
+      }
     } catch (e) {
       console.error(e);
       alert(

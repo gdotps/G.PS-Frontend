@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CURRENT_USER,
-  MOCK_CHATS,
   MOCK_NOTIFICATIONS,
   MOCK_POSTS,
 } from "../constants";
@@ -26,6 +25,19 @@ import {
 } from "../services/postService";
 import { toggleLike as apiToggleLike } from "../services/likeService";
 import {
+  ChatIncomingMessage,
+  ChatMessageReadEvent,
+  deleteChatMessage,
+  exitChatRoom,
+  getChatRoomHistory,
+  getChatRoomUsers,
+  markChatMessageAsRead,
+  getMyChatRooms,
+  sendChatMessage,
+  subscribeChatRoom,
+  unsubscribeChatRoom,
+} from "../services/chatService";
+import {
   ApplicationItem,
   ChatRoom,
   Comment,
@@ -39,6 +51,7 @@ import {
 } from "../types";
 
 export const useAppLogic = () => {
+  const DELETED_MESSAGE_TEXT = "메시지가 삭제되었습니다.";
   const [currentView, setCurrentView] = useState<ViewState>(
     ViewState.ONBOARDING,
   );
@@ -47,10 +60,12 @@ export const useAppLogic = () => {
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [selectedChatId, setSelectedChatId] = useState<number | null>(null);
   const [posts, setPosts] = useState<Post[]>(MOCK_POSTS);
-  const [chats, setChats] = useState<ChatRoom[]>(MOCK_CHATS);
+  const [chats, setChats] = useState<ChatRoom[]>([]);
   const [notifications, setNotifications] =
     useState<Notification[]>(MOCK_NOTIFICATIONS);
   const [bookmarkedIds, setBookmarkedIds] = useState<number[]>([]);
+  const [selectedChatParticipants, setSelectedChatParticipants] = useState<User[]>([]);
+  const [selectedChatIsManager, setSelectedChatIsManager] = useState(false);
   const [isLikeLoading, setIsLikeLoading] = useState<boolean>(false);
   const [showRejoinConfirm, setShowRejoinConfirm] = useState(false);
   const [isProfileLoading, setIsProfileLoading] = useState(false);
@@ -63,6 +78,251 @@ export const useAppLogic = () => {
   const [likedMeetingsIsLast, setLikedMeetingsIsLast] = useState<boolean>(false);
   const [likedMeetingsTotalElements, setLikedMeetingsTotalElements] = useState<number>(0);
   const [isLikedMeetingsLoading, setIsLikedMeetingsLoading] = useState<boolean>(false);
+
+  const mapIncomingMessageToState = (item: ChatIncomingMessage): Message => ({
+    id: item.id,
+    senderId: item.sender,
+    senderUsername: item.senderUsername,
+    text: item.messageType === "DELETED" ? DELETED_MESSAGE_TEXT : item.message,
+    timestamp:
+      typeof item.timestamp === "number"
+        ? item.timestamp
+        : new Date(item.timestamp).getTime(),
+    deleted: item.messageType === "DELETED",
+  });
+
+  const hasPersistedMessageId = (id: string | number): boolean => {
+    const value = String(id);
+    return /^[a-f0-9]{24}$/i.test(value) || /^\d+$/.test(value);
+  };
+
+  const mapHistoryToMessages = (history: Awaited<ReturnType<typeof getChatRoomHistory>>): Message[] => {
+    return history.map((item) => {
+      const isDeleted = Boolean(item.deleted) || item.messageType === "DELETED";
+      return {
+        id: item.id,
+        senderId: item.sender,
+        senderUsername: item.senderUsername,
+        text: isDeleted
+          ? DELETED_MESSAGE_TEXT
+          : item.messageType === "TEXT"
+            ? item.message
+            : item.message || "[이미지 메시지]",
+        timestamp: new Date(item.timestamp).getTime(),
+        readByUserIds: item.readBy ?? [],
+        deleted: isDeleted,
+      };
+    });
+  };
+
+  const applyDeletedMessageToChat = (chat: ChatRoom, messageId: string): ChatRoom => {
+    let changed = false;
+    const nextMessages = chat.messages.map((message) => {
+      if (String(message.id) !== String(messageId)) return message;
+      changed = true;
+      if (message.deleted && message.text === DELETED_MESSAGE_TEXT) {
+        return message;
+      }
+      return {
+        ...message,
+        text: DELETED_MESSAGE_TEXT,
+        deleted: true,
+      };
+    });
+
+    if (!changed) return chat;
+
+    const latestMessage = nextMessages[nextMessages.length - 1];
+    return {
+      ...chat,
+      messages: nextMessages,
+      lastMessage: latestMessage?.text ?? "",
+      lastMessageTime: latestMessage
+        ? new Date(latestMessage.timestamp).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : "",
+    };
+  };
+
+  const updateChatMessages = useCallback((chatId: number, mappedMessages: Message[]) => {
+    setChats((prev) =>
+      prev.map((chat) =>
+        chat.id === chatId
+          ? {
+              ...chat,
+              messages: mappedMessages,
+              lastMessage:
+                mappedMessages.length > 0
+                  ? mappedMessages[mappedMessages.length - 1].text
+                  : "",
+              lastMessageTime:
+                mappedMessages.length > 0
+                  ? new Date(
+                      mappedMessages[mappedMessages.length - 1].timestamp,
+                    ).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  : "",
+            }
+          : chat,
+      ),
+    );
+  }, []);
+
+  const markUnreadMessagesInRoom = useCallback(
+    async (chatId: number, messages: Message[]) => {
+      const unreadTargetMessages = messages.filter(
+        (message) =>
+          message.senderId !== currentUser.userId &&
+          !(message.readByUserIds ?? []).includes(currentUser.userId) &&
+          hasPersistedMessageId(message.id),
+      );
+
+      if (unreadTargetMessages.length === 0) return;
+
+      await Promise.all(
+        unreadTargetMessages.map((message) =>
+          markChatMessageAsRead({
+            roomId: chatId,
+            messageId: String(message.id),
+            userId: currentUser.userId,
+          }),
+        ),
+      );
+    },
+    [currentUser.userId],
+  );
+
+  const syncRoomHistory = useCallback(
+    async (chatId: number, markUnread = false) => {
+      const history = await getChatRoomHistory(chatId);
+      const mappedMessages = mapHistoryToMessages(history);
+      updateChatMessages(chatId, mappedMessages);
+      if (markUnread) {
+        await markUnreadMessagesInRoom(chatId, mappedMessages);
+      }
+      return mappedMessages;
+    },
+    [markUnreadMessagesInRoom, updateChatMessages],
+  );
+
+  const appendIncomingMessage = useCallback((incoming: ChatIncomingMessage) => {
+    const incomingMessage = mapIncomingMessageToState(incoming);
+    const incomingRoomId = Number(incoming.roomId);
+
+    setChats((prev) =>
+      prev.map((chat) => {
+        if (chat.id !== incomingRoomId) return chat;
+
+        const alreadyExists = chat.messages.some(
+          (message) => String(message.id) === String(incomingMessage.id),
+        );
+        if (alreadyExists) return chat;
+
+        const optimisticMessageIndex = chat.messages.findIndex((message) => {
+          if (!String(message.id).startsWith("local-")) return false;
+          if (message.senderId !== incomingMessage.senderId) return false;
+          if (message.text !== incomingMessage.text) return false;
+          return Math.abs(message.timestamp - incomingMessage.timestamp) <= 15000;
+        });
+
+        if (optimisticMessageIndex >= 0) {
+          const nextMessages = [...chat.messages];
+          const prevOptimistic = nextMessages[optimisticMessageIndex];
+          nextMessages[optimisticMessageIndex] = {
+            ...prevOptimistic,
+            ...incomingMessage,
+            readByUserIds: incoming.readBy ?? prevOptimistic.readByUserIds ?? [],
+          };
+
+          return {
+            ...chat,
+            messages: nextMessages,
+            lastMessage: incomingMessage.text,
+            lastMessageTime: new Date(incomingMessage.timestamp).toLocaleTimeString(
+              [],
+              {
+                hour: "2-digit",
+                minute: "2-digit",
+              },
+            ),
+          };
+        }
+
+        return {
+          ...chat,
+          messages: [
+            ...chat.messages,
+            {
+              ...incomingMessage,
+              readByUserIds: incoming.readBy ?? [],
+            },
+          ],
+          lastMessage: incomingMessage.text,
+          lastMessageTime: new Date(incomingMessage.timestamp).toLocaleTimeString(
+            [],
+            {
+              hour: "2-digit",
+              minute: "2-digit",
+            },
+          ),
+        };
+      }),
+    );
+
+    if (
+      selectedChatId === incomingRoomId &&
+      incomingMessage.senderId !== currentUser.userId
+    ) {
+      if (hasPersistedMessageId(incomingMessage.id)) {
+        void markChatMessageAsRead({
+          roomId: incomingRoomId,
+          messageId: String(incomingMessage.id),
+          userId: currentUser.userId,
+        });
+      } else {
+        void syncRoomHistory(incomingRoomId, true);
+      }
+    }
+  }, [currentUser.userId, selectedChatId, syncRoomHistory]);
+
+  const applyReadEvent = useCallback((event: ChatMessageReadEvent) => {
+    let matched = false;
+
+    setChats((prev) =>
+      prev.map((chat) => {
+        if (chat.id !== event.roomId) return chat;
+
+        return {
+          ...chat,
+          messages: chat.messages.map((message) => {
+            if (String(message.id) !== String(event.messageId)) return message;
+            matched = true;
+            const baseReadBy = message.readByUserIds ?? [];
+            if (baseReadBy.includes(event.userId)) return message;
+            return {
+              ...message,
+              readByUserIds: [...baseReadBy, event.userId],
+            };
+          }),
+        };
+      }),
+    );
+
+    // Optimistic local IDs(local-*)와 서버 messageId가 불일치하는 경우를 보정한다.
+    if (!matched) {
+      void syncRoomHistory(event.roomId, false);
+    }
+  }, [syncRoomHistory]);
+
+  const applyDeleteEvent = useCallback((messageId: string) => {
+    setChats((prev) =>
+      prev.map((chat) => applyDeletedMessageToChat(chat, messageId)),
+    );
+  }, []);
 
   // 토큰 갱신 실패 시 apiClient가 발생시키는 이벤트 처리
   useEffect(() => {
@@ -88,10 +348,97 @@ export const useAppLogic = () => {
     setCurrentView(ViewState.EDIT_POST);
   };
 
-  const goToChatRoom = (chatId: number) => {
+  const loadChatRooms = useCallback(async () => {
+    try {
+      const data = await getMyChatRooms();
+      setChats(
+        data.map((room) => ({
+          id: room.id,
+          title: room.title,
+          postId: room.postId,
+          lastMessage: "",
+          lastMessageTime: "",
+          unreadCount: 0,
+          participants: [],
+          messages: [],
+        })),
+      );
+    } catch (err) {
+      console.error("채팅방 호출 에러:", err);
+    }
+  }, []);
+
+  const goToChatList = () => {
+    void loadChatRooms();
+    setCurrentView(ViewState.CHAT_LIST);
+  };
+
+  const goToChatRoom = async (chatId: number) => {
+    unsubscribeChatRoom();
     setSelectedChatId(chatId);
+    try {
+      const [users, history] = await Promise.all([
+        getChatRoomUsers(chatId),
+        getChatRoomHistory(chatId),
+      ]);
+
+      const mappedMessages = mapHistoryToMessages(history);
+      updateChatMessages(chatId, mappedMessages);
+
+      const mappedParticipants: User[] = users.map((user) => ({
+        userId: user.id,
+        nickname: user.nickname,
+        profileUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.nickname)}&background=F3F4F6&color=111827`,
+        introduction: user.isManager ? "방장" : "참여자",
+      }));
+
+      setSelectedChatParticipants(
+        mappedParticipants.length > 0
+          ? mappedParticipants
+          : [
+              {
+                ...currentUser,
+                introduction: currentUser.introduction || "참여자",
+              },
+            ],
+      );
+
+      const me = users.find((user) => user.id === currentUser.userId);
+      setSelectedChatIsManager(Boolean(me?.isManager));
+
+      await subscribeChatRoom(
+        chatId,
+        appendIncomingMessage,
+        applyReadEvent,
+        applyDeleteEvent,
+      );
+
+      await markUnreadMessagesInRoom(chatId, mappedMessages);
+    } catch (err) {
+      console.error("채팅방 유저 호출 에러:", err);
+      setSelectedChatIsManager(false);
+      setSelectedChatParticipants([
+        {
+          ...currentUser,
+          introduction: currentUser.introduction || "참여자",
+        },
+      ]);
+      setChats((prev) =>
+        prev.map((chat) =>
+          chat.id === chatId
+            ? {
+                ...chat,
+                messages: [],
+                lastMessage: "",
+                lastMessageTime: "",
+              }
+            : chat,
+        ),
+      );
+    }
     setCurrentView(ViewState.CHAT_ROOM);
   };
+
   const refreshCurrentUser = async () => {
     setIsProfileLoading(true);
     try {
@@ -298,33 +645,123 @@ export const useAppLogic = () => {
 
   const handleSendMessage = async (text: string) => {
     if (!selectedChatId) return;
-    const newMessage: Message = {
-      id: Date.now(), // string에서 이걸로 변경됨
+    const trimmedText = text.trim();
+    if (!trimmedText) return;
+
+    const optimisticMessage: Message = {
+      id: `local-${Date.now()}`,
       senderId: currentUser.userId,
-      text: text,
+      senderUsername: currentUser.nickname,
+      text: trimmedText,
       timestamp: Date.now(),
     };
-    const updatedChats = chats.map((chat) => {
-      if (chat.id === selectedChatId) {
-        return {
-          ...chat,
-          messages: [...chat.messages, newMessage],
-          lastMessage: text,
-          lastMessageTime: "방금",
-          unreadCount: 0,
-        };
-      }
-      return chat;
-    });
-    setChats(updatedChats);
+
+    setChats((prev) =>
+      prev.map((chat) =>
+        chat.id === selectedChatId
+          ? {
+              ...chat,
+              messages: [...chat.messages, optimisticMessage],
+              lastMessage: trimmedText,
+              lastMessageTime: new Date(optimisticMessage.timestamp).toLocaleTimeString(
+                [],
+                {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                },
+              ),
+            }
+          : chat,
+      ),
+    );
+
+    try {
+      await sendChatMessage({
+        roomId: selectedChatId,
+        senderId: currentUser.userId,
+        message: trimmedText,
+        messageType: "TEXT",
+        imageUrl: null,
+      });
+      void syncRoomHistory(selectedChatId, false);
+    } catch (error) {
+      setChats((prev) =>
+        prev.map((chat) =>
+          chat.id === selectedChatId
+            ? {
+                ...chat,
+                messages: chat.messages.filter(
+                  (message) => message.id !== optimisticMessage.id,
+                ),
+              }
+            : chat,
+        ),
+      );
+      console.error("메시지 전송 실패:", error);
+      alert("메시지 전송에 실패했습니다. 다시 시도해주세요.");
+    }
   };
 
-  const handleLeaveChat = (chatId: number) => {
-    const leftChats = chats.filter((c) => c.id !== chatId);
-    setChats(leftChats);
-    setCurrentView(ViewState.CHAT_LIST);
-    setSelectedChatId(null);
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!selectedChatId) return;
+
+    const prevChats = chats;
+    setChats((current) =>
+      current.map((chat) =>
+        chat.id === selectedChatId ? applyDeletedMessageToChat(chat, messageId) : chat,
+      ),
+    );
+
+    try {
+      await deleteChatMessage({ messageId });
+    } catch (error) {
+      setChats(prevChats);
+      console.error("메시지 삭제 실패:", error);
+      alert("메시지 삭제에 실패했습니다. 다시 시도해주세요.");
+    }
   };
+
+  const handleLeaveChat = async (chatId: number) => {
+    if (selectedChatIsManager) {
+      const targetChat = chats.find((chat) => chat.id === chatId);
+      if (!targetChat) {
+        alert("채팅방 정보를 찾을 수 없습니다.");
+        return;
+      }
+
+      const targetPost = posts.find((post) => post.id === targetChat.postId);
+      if (!targetPost) {
+        alert("게시글 정보를 찾을 수 없습니다. 홈에서 게시글을 다시 확인해주세요.");
+        return;
+      }
+
+      setSelectedPost(targetPost);
+      setCurrentView(ViewState.POST_DETAIL);
+      return;
+    }
+
+    try {
+      await exitChatRoom(chatId);
+
+      if (selectedChatId === chatId) {
+        unsubscribeChatRoom();
+      }
+      const leftChats = chats.filter((c) => c.id !== chatId);
+      setChats(leftChats);
+      setCurrentView(ViewState.CHAT_LIST);
+      setSelectedChatId(null);
+      setSelectedChatIsManager(false);
+    } catch (error) {
+      console.error("채팅방 나가기 실패:", error);
+      alert("채팅방 나가기에 실패했습니다. 다시 시도해주세요.");
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      unsubscribeChatRoom();
+    };
+  }, []);
 
   // 신규 유저 프로필 설정 완료
   // PATCH /api/v1/users/me 로 닉네임/소개 저장 후 홈으로 이동
@@ -479,6 +916,7 @@ export const useAppLogic = () => {
       };
       setPosts([newPost, ...posts]);
       setCurrentView(ViewState.HOME);
+      return result;
     } catch (err) {
       console.error(err);
       alert("모임 등록에 실패했습니다.");
@@ -604,6 +1042,10 @@ export const useAppLogic = () => {
     bookmarkedIds,
     selectedPost,
     selectedChatId,
+    selectedChatParticipants,
+    selectedChatIsManager,
+    goToChatList,
+    loadChatRooms,
     // 핸들러
     goToHome,
     goToPostDetail,
@@ -615,6 +1057,7 @@ export const useAppLogic = () => {
     handleReject,
     handleAddComment,
     handleSendMessage,
+    handleDeleteMessage,
     handleLeaveChat,
     createPost,
     goToEditPost,

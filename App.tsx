@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { BottomNav } from "./components/BottomNav";
 import { useAppLogic } from "./hooks/useAppLogic";
-import { getUserInfo } from "./services/userService";
 import { ViewState } from "./types";
 
 // Components
@@ -31,8 +30,11 @@ export default function App() {
     bookmarkedIds,
     selectedPost,
     selectedChatId,
+    selectedChatParticipants,
+    selectedChatIsManager,
     goToHome,
     goToPostDetail,
+    goToChatList,
     goToChatRoom,
     toggleLike,
     handleJoin,
@@ -41,6 +43,7 @@ export default function App() {
     handleReject,
     handleAddComment,
     handleSendMessage,
+    handleDeleteMessage,
     handleLeaveChat,
     createPost,
     // Profile Setup
@@ -130,17 +133,19 @@ export default function App() {
       case ViewState.MAP:
         return <MapView posts={posts} onViewPost={goToPostDetail} />;
       case ViewState.CHAT_LIST:
-        return <ChatList chats={chats} onSelectChat={goToChatRoom} />;
+        return <ChatList chats={chats} posts={posts} onSelectChat={goToChatRoom} />;
       case ViewState.CHAT_ROOM:
         const currentChat = chats.find((c) => c.id === selectedChatId);
         return currentChat ? (
           <ChatRoomView
             chatRoom={currentChat}
-            participantsInfo={currentChat.participants.map((uid) =>
-              getUserInfo(uid, posts, currentUser),
-            )}
+            participantsInfo={selectedChatParticipants}
+            currentUserId={currentUser.userId}
+            currentUserName={currentUser.nickname}
+            isCurrentUserManager={selectedChatIsManager}
             onBack={() => setCurrentView(ViewState.CHAT_LIST)}
             onSendMessage={handleSendMessage}
+            onDeleteMessage={handleDeleteMessage}
             onLeave={() => handleLeaveChat(currentChat.id)}
           />
         ) : (
@@ -217,11 +222,19 @@ export default function App() {
     ViewState.PROFILE,
   ].includes(currentView);
 
+  const handleChangeView = (view: ViewState) => {
+    if (view === ViewState.CHAT_LIST) {
+      goToChatList();
+      return;
+    }
+    setCurrentView(view);
+  };
+
   return (
     <div className="bg-white min-h-screen max-w-md mx-auto shadow-2xl overflow-hidden relative font-sans text-gray-900">
       {renderContent()}
       {showNav && (
-        <BottomNav currentView={currentView} onChangeView={setCurrentView} />
+        <BottomNav currentView={currentView} onChangeView={handleChangeView} />
       )}
       {showRejoinConfirm && (
         <ConfirmModal
