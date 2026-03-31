@@ -31,6 +31,7 @@ export default function App() {
     selectedPost,
     selectedChatId,
     selectedChatParticipants,
+    selectedChatIsManager,
     goToHome,
     goToPostDetail,
     goToChatList,
@@ -42,6 +43,7 @@ export default function App() {
     handleReject,
     handleAddComment,
     handleSendMessage,
+    handleDeleteMessage,
     handleLeaveChat,
     createPost,
     // Profile Setup
@@ -140,8 +142,10 @@ export default function App() {
             participantsInfo={selectedChatParticipants}
             currentUserId={currentUser.userId}
             currentUserName={currentUser.nickname}
+            isCurrentUserManager={selectedChatIsManager}
             onBack={() => setCurrentView(ViewState.CHAT_LIST)}
             onSendMessage={handleSendMessage}
+            onDeleteMessage={handleDeleteMessage}
             onLeave={() => handleLeaveChat(currentChat.id)}
           />
         ) : (
