@@ -1102,7 +1102,7 @@ export const useAppLogic = () => {
     handleDeleteMessage,
     handleLeaveChat,
     createPost,
-    handleDeletePost,
+    //handleDeletePost,
     goToEditPost,
     editPost,
     // 프로필 설정
