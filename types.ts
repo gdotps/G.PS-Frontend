@@ -73,7 +73,7 @@ export interface Post {
   authorAvatar: string;
   title: string;
   description: string;
-  category: "SPORTS" | "STUDY" | "FOOD" | "HOBBY" | "GAME" | "MUSIC" | "ETC";
+  category: string; //"SPORTS" | "STUDY" | "FOOD" | "HOBBY" | "GAME" | "MUSIC" | "ETC";
   meetingType: "OFFLINE" | "ONLINE";
   location: string;
   distance: string;

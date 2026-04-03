@@ -174,7 +174,6 @@ export const PostDetail: React.FC<{
           </p>
         </div>
 
-        {/* Host - Applicant Management Section */}
         {isHost && post.applicants && post.applicants.length > 0 && (
           <div className="mb-8 border-t border-gray-100 pt-6">
             <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">

@@ -16,6 +16,7 @@ import {
 } from "../services/userService";
 import {
   createPost as apiCreatePost,
+  fetchHomePosts as apiFetchHomePosts,
   updatePost as apiUpdatePost,
   deletePost as apiDeletePost,
   PostRequest,
@@ -367,6 +368,15 @@ export const useAppLogic = () => {
     setSelectedPost(post);
     setCurrentView(ViewState.EDIT_POST);
   };
+
+  const loadHomePosts = useCallback(async () => {
+    try {
+      const homePosts = await apiFetchHomePosts();
+      setPosts(homePosts);
+    } catch (error) {
+      console.error("홈 게시글 조회 오류:", error);
+    }
+  }, []);
 
   const loadChatRooms = useCallback(async () => {
     try {
@@ -798,6 +808,11 @@ export const useAppLogic = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (currentView !== ViewState.HOME) return;
+    void loadHomePosts();
+  }, [currentView, loadHomePosts]);
+
   // 신규 유저 프로필 설정 완료
   // PATCH /api/v1/users/me 로 닉네임/소개 저장 후 홈으로 이동
   const handleProfileSetupSubmit = async (data: {
@@ -1012,6 +1027,28 @@ export const useAppLogic = () => {
     }
   };
 
+  const handleDeletePost = async (postId: number) => {
+    const targetPost = posts.find((post) => post.id === postId);
+    if (!targetPost) return;
+
+    if (!window.confirm("정말로 이 게시글을 삭제하시겠습니까?")) {
+      return;
+    }
+
+    try {
+      await apiDeletePost(postId);
+      setPosts((prev) => prev.filter((post) => post.id !== postId));
+      if (selectedPost?.id === postId) {
+        setSelectedPost(null);
+      }
+      setCurrentView(ViewState.HOME);
+      alert("게시글이 삭제되었습니다.");
+    } catch (error) {
+      console.error("게시글 삭제 실패:", error);
+      alert("게시글 삭제에 실패했습니다. 다시 시도해주세요.");
+    }
+  };
+
   const OAUTH_ERROR_MESSAGES: Record<string, string> = {
     access_denied: "로그인을 취소했습니다.",
     server_error: "서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
@@ -1102,7 +1139,7 @@ export const useAppLogic = () => {
     handleDeleteMessage,
     handleLeaveChat,
     createPost,
-    //handleDeletePost,
+    handleDeletePost,
     goToEditPost,
     editPost,
     // 프로필 설정

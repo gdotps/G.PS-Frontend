@@ -1,3 +1,4 @@
+import { Post } from "../types";
 import { getAccessToken } from "./authService";
 
 const API_BASE_URL = "http://localhost:8080";
@@ -27,9 +28,9 @@ export interface PostResponse {
   currentMembers: number;
   images?: string[];
   author?: {
-    id: number;
-    name: string;
-    avatarUrl: string;
+    userId: number;
+    nickname: string;
+    profileUrl: string;
   };
   comments?: Array<{
     id: number;
@@ -46,6 +47,63 @@ export interface PostResponse {
 export interface PostCreateResponse {
   postId: number;
 }
+
+interface ApiResponse<T> {
+  success: boolean;
+  message: string;
+  data: T;
+}
+
+const mapPostResponseToPost = (post: PostResponse): Post => ({
+  id: post.postId,
+  authorId: post.author?.userId ?? 0,
+  authorName: post.author?.nickname ?? "",
+  authorAvatar: post.author?.profileUrl ?? "",
+  title: post.title,
+  description: post.content,
+  category: post.category,
+  meetingType: post.meetingType,
+  location:
+    post.meetingType === "ONLINE" ? "온라인" : (post.locationName ?? ""),
+  distance: "",
+  lat: post.lat ?? undefined,
+  lng: post.lng ?? undefined,
+  maxMembers: post.maxMembers,
+  currentMembers: post.currentMembers,
+  time: post.meetingTime,
+  tags: [],
+  imageUrl: post.images?.[0],
+  images: post.images,
+  createdAt: Date.now(),
+  comments:
+    post.comments?.map((comment) => ({
+      id: comment.id,
+      authorId: comment.authorId,
+      authorName: comment.authorName,
+      authorAvatar: comment.authorAvatar,
+      text: comment.text,
+      timestamp: comment.timestamp,
+    })) ?? [],
+  applicants: [],
+});
+
+export const fetchHomePosts = async (): Promise<Post[]> => {
+  const token = getAccessToken();
+  const res = await fetch(`${API_BASE_URL}/api/v1/posts/home`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Failed to fetch home posts: ${res.status} ${errText}`);
+  }
+  const json: ApiResponse<PostResponse[]> = await res.json();
+  return json.data.map(mapPostResponseToPost);
+};
 
 export const createPost = async (
   request: PostRequest,
