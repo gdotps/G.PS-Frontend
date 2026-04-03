@@ -17,6 +17,7 @@ import {
 import {
   createPost as apiCreatePost,
   fetchHomePosts as apiFetchHomePosts,
+  fetchPostById as apiFetchPostById,
   updatePost as apiUpdatePost,
   deletePost as apiDeletePost,
   PostRequest,
@@ -359,9 +360,35 @@ export const useAppLogic = () => {
   const goToHome = () => setCurrentView(ViewState.HOME);
   const goToProfileSetup = () => setCurrentView(ViewState.PROFILE_SETUP);
 
-  const goToPostDetail = (post: Post) => {
+  const goToPostDetail = async (post: Post) => {
     setSelectedPost(post);
     setCurrentView(ViewState.POST_DETAIL);
+    try {
+      const detailedPost = await apiFetchPostById(post.id);
+      setSelectedPost(detailedPost);
+      setPosts((prev) =>
+        prev.map((currentPost) =>
+          currentPost.id === detailedPost.id ? detailedPost : currentPost,
+        ),
+      );
+    } catch (error) {
+      console.error("게시글 상세 조회 오류:", error);
+    }
+  };
+
+  const goToPostDetailById = async (postId: number) => {
+    setCurrentView(ViewState.POST_DETAIL);
+    try {
+      const detailedPost = await apiFetchPostById(postId);
+      setSelectedPost(detailedPost);
+      setPosts((prev) =>
+        prev.map((currentPost) =>
+          currentPost.id === detailedPost.id ? detailedPost : currentPost,
+        ),
+      );
+    } catch (error) {
+      console.error("게시글 상세 재조회 오류:", error);
+    }
   };
 
   const goToEditPost = (post: Post) => {
@@ -1128,6 +1155,7 @@ export const useAppLogic = () => {
     // 핸들러
     goToHome,
     goToPostDetail,
+    goToPostDetailById,
     goToChatRoom,
     toggleLike,
     handleJoin,

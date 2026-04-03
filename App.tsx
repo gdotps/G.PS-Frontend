@@ -34,6 +34,7 @@ export default function App() {
     selectedChatIsManager,
     goToHome,
     goToPostDetail,
+    goToPostDetailById,
     goToChatList,
     goToChatRoom,
     toggleLike,
@@ -130,7 +131,7 @@ export default function App() {
             onApprove={handleApprove}
             onReject={handleReject}
             onAddComment={handleAddComment}
-            onEdit={goToEditPost}
+            onEdit={() => goToEditPost(selectedPost)}
             onDelete={handleDeletePost}
           />
         ) : null;
@@ -164,7 +165,7 @@ export default function App() {
         return selectedPost ? (
           <CreatePostView
             initialPost={selectedPost}
-            onCancel={() => setCurrentView(ViewState.POST_DETAIL)}
+            onCancel={() => void goToPostDetailById(selectedPost.id)}
             onCreate={editPost}
           />
         ) : null;

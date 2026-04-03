@@ -40,6 +40,9 @@ export const PostDetail: React.FC<{
   onDelete,
 }) => {
   const [commentText, setCommentText] = useState("");
+  const tags = post.tags ?? [];
+  const applicants = post.applicants ?? [];
+  const comments = post.comments ?? [];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,12 +51,8 @@ export const PostDetail: React.FC<{
     setCommentText("");
   };
 
-  // Check if current user is the host
   const isHost = post.authorId === currentUser.userId;
-  // Check if current user has already applied
-  const hasApplied = post.applicants?.some(
-    (a) => a.userId === currentUser.userId,
-  );
+  const hasApplied = applicants.some((a) => a.userId === currentUser.userId);
 
   return (
     <div className="bg-white min-h-screen pb-32">
@@ -77,7 +76,7 @@ export const PostDetail: React.FC<{
           <div className="flex gap-2 overflow-x-auto hide-scrollbar mb-6 -mx-5 px-5 snap-x">
             {post.images.map((img, i) => (
               <div
-                key={i}
+                key={`${img}-${i}`}
                 className="w-full h-64 flex-shrink-0 rounded-2xl overflow-hidden shadow-md snap-center relative"
               >
                 <img
@@ -86,7 +85,7 @@ export const PostDetail: React.FC<{
                   className="w-full h-full object-cover"
                 />
                 <span className="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded-full backdrop-blur-sm">
-                  {i + 1} / {post.images?.length}
+                  {i + 1} / {post.images.length}
                 </span>
               </div>
             ))}
@@ -140,9 +139,9 @@ export const PostDetail: React.FC<{
         <h1 className="text-2xl font-bold text-gray-900 mb-3">{post.title}</h1>
 
         <div className="flex flex-wrap gap-2 mb-6">
-          {post.tags.map((tag) => (
+          {tags.map((tag, index) => (
             <span
-              key={tag}
+              key={`${tag}-${index}`}
               className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-md"
             >
               #{tag}
@@ -174,40 +173,37 @@ export const PostDetail: React.FC<{
           </p>
         </div>
 
-        {isHost && post.applicants && post.applicants.length > 0 && (
+        {isHost && applicants.length > 0 && (
           <div className="mb-8 border-t border-gray-100 pt-6">
             <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
               <UserCheck size={18} className="text-gray-600" />
-              참여 신청 ({post.applicants.length}명)
+              참여 신청 ({applicants.length}명)
             </h3>
             <div className="space-y-3">
-              {post.applicants.map((applicant) => (
+              {applicants.map((applicant) => (
                 <div
-                  key={applicant.id}
+                  key={applicant.userId}
                   className="flex items-center gap-3 bg-white p-3 rounded-xl border border-gray-100 shadow-sm"
                 >
                   <img
-                    src={applicant.avatarUrl}
-                    alt={applicant.name}
+                    src={applicant.profileUrl}
+                    alt={applicant.nickname}
                     className="w-10 h-10 rounded-full bg-gray-200 object-cover"
                   />
                   <div className="flex-1">
                     <p className="text-sm font-bold text-gray-900">
-                      {applicant.name}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {applicant.hometown} ➔ 서울
+                      {applicant.nickname}
                     </p>
                   </div>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => onReject(post.id, applicant.id)}
+                      onClick={() => onReject(post.id, applicant.userId)}
                       className="px-3 py-1.5 bg-gray-100 text-gray-500 text-xs font-bold rounded-lg hover:bg-gray-200 transition-colors"
                     >
                       거절
                     </button>
                     <button
-                      onClick={() => onApprove(post.id, applicant.id)}
+                      onClick={() => onApprove(post.id, applicant.userId)}
                       className="px-3 py-1.5 bg-gray-900 text-white text-xs font-bold rounded-lg hover:bg-gray-700 transition-colors shadow-sm"
                     >
                       승인
@@ -219,18 +215,17 @@ export const PostDetail: React.FC<{
           </div>
         )}
 
-        {/* Comment Section */}
         <div className="border-t border-gray-100 pt-6 mt-6">
           <h3 className="font-bold text-gray-900 mb-4 px-1">
-            댓글 ({post.comments ? post.comments.length : 0})
+            댓글 ({comments.length})
           </h3>
           <div className="space-y-6 mb-6">
-            {!post.comments || post.comments.length === 0 ? (
+            {comments.length === 0 ? (
               <p className="text-gray-400 text-sm text-center py-4">
-                첫 댓글을 남겨보세요!
+                첫 댓글을 남겨보세요.
               </p>
             ) : (
-              post.comments.map((comment) => (
+              comments.map((comment) => (
                 <div key={comment.id} className="flex gap-3">
                   <img
                     src={
@@ -261,7 +256,6 @@ export const PostDetail: React.FC<{
             )}
           </div>
 
-          {/* Comment Input */}
           <form onSubmit={handleSubmit} className="flex gap-2 items-center">
             <div className="w-8 h-8 rounded-full bg-gray-200 shrink-0 overflow-hidden">
               <img
@@ -275,7 +269,7 @@ export const PostDetail: React.FC<{
                 type="text"
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
-                placeholder="궁금한 점을 물어보세요..."
+                placeholder="궁금한 점을 물어보세요.."
                 className="w-full bg-gray-50 border border-gray-200 rounded-full pl-4 pr-10 py-2.5 text-sm focus:outline-none focus:border-gray-900 focus:bg-white transition-all"
               />
               <button
@@ -290,7 +284,6 @@ export const PostDetail: React.FC<{
         </div>
       </div>
 
-      {/* Sticky Join Button (Action = Dark Gray) */}
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-100 max-w-md mx-auto z-20">
         <button
           onClick={hasApplied ? onCancelJoin : onJoin}
@@ -305,10 +298,10 @@ export const PostDetail: React.FC<{
                 }`}
         >
           {isHost
-            ? "내가 만든 모임입니다"
+            ? "내가 만든 모임입니다."
             : hasApplied
               ? "참여 취소하기"
-              : `참여하기 (프로필 전송)`}
+              : "참여하기 (프로필 전송)"}
         </button>
       </div>
     </div>
