@@ -51,6 +51,17 @@ export interface ApplicantInfo {
   appliedAt: string;
 }
 
+export interface ApplicantPostSummary {
+  postId: number;
+  title: string;
+  category: string;
+  locationName: string;
+  meetingTime: string;
+  maxMembers: number;
+  currentMembers: number;
+  applicantCount: number;
+}
+
 export interface User {
   userId: number;
   nickname: string;

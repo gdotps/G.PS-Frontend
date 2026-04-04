@@ -19,6 +19,7 @@ import {
   cancelPostApplication as apiCancelPostApplication,
   changePostApplicantStatus as apiChangePostApplicantStatus,
   createPost as apiCreatePost,
+  fetchMyApplicantPosts as apiFetchMyApplicantPosts,
   fetchPostApplicants as apiFetchPostApplicants,
   fetchHomePosts as apiFetchHomePosts,
   fetchPostById as apiFetchPostById,
@@ -596,6 +597,10 @@ export const useAppLogic = () => {
 
   const fetchApplicantsByPostId = useCallback(async (postId: number) => {
     return apiFetchPostApplicants(postId);
+  }, []);
+
+  const fetchApplicantPostSummaries = useCallback(async () => {
+    return apiFetchMyApplicantPosts();
   }, []);
 
   // 액션
@@ -1263,6 +1268,7 @@ export const useAppLogic = () => {
     goToMyApplications,
     loadMoreApplications,
     fetchApplicantsByPostId,
+    fetchApplicantPostSummaries,
     // 찜한 모임
     likedMeetings,
     likedMeetingsTotalElements,

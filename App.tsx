@@ -71,6 +71,7 @@ export default function App() {
     isApplicationsLoading,
     goToMyApplications,
     loadMoreApplications,
+    fetchApplicantPostSummaries,
     fetchApplicantsByPostId,
     likedMeetings,
     likedMeetingsTotalElements,
@@ -203,9 +204,8 @@ export default function App() {
       case ViewState.APPLICANTS:
         return (
           <ApplicantListView
-            posts={posts}
-            currentUser={currentUser}
             onBack={() => setCurrentView(ViewState.PROFILE)}
+            onFetchApplicantPosts={fetchApplicantPostSummaries}
             onFetchApplicants={fetchApplicantsByPostId}
             onApprove={handleApprove}
             onReject={handleReject}

@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { ApplicantInfo, ApplicantStatus, Post, User } from "../types";
+import React, { useEffect, useState } from "react";
+import { ApplicantInfo, ApplicantPostSummary, ApplicantStatus } from "../types";
 import { Header } from "./Header";
 import {
   ChevronDown,
@@ -13,9 +13,8 @@ import {
 } from "lucide-react";
 
 interface ApplicantListViewProps {
-  posts: Post[];
-  currentUser: User;
   onBack: () => void;
+  onFetchApplicantPosts: () => Promise<ApplicantPostSummary[]>;
   onFetchApplicants: (postId: number) => Promise<ApplicantInfo[]>;
   onApprove: (postId: number, applicantId: number) => Promise<void>;
   onReject: (postId: number, applicantId: number) => Promise<void>;
@@ -40,20 +39,16 @@ const STATUS_CONFIG: Record<
 };
 
 export const ApplicantListView: React.FC<ApplicantListViewProps> = ({
-  posts,
-  currentUser,
   onBack,
+  onFetchApplicantPosts,
   onFetchApplicants,
   onApprove,
   onReject,
 }) => {
-  const myHostedPosts = useMemo(
-    () => posts.filter((post) => post.authorId === currentUser.userId),
-    [currentUser.userId, posts],
-  );
+  const [posts, setPosts] = useState<ApplicantPostSummary[]>([]);
+  const [isPostsLoading, setIsPostsLoading] = useState(false);
   const [openPostId, setOpenPostId] = useState<number | null>(null);
   const [loadingPostId, setLoadingPostId] = useState<number | null>(null);
-  const [isSummaryLoading, setIsSummaryLoading] = useState(false);
   const [applicantsByPostId, setApplicantsByPostId] = useState<
     Record<number, ApplicantInfo[]>
   >({});
@@ -61,53 +56,31 @@ export const ApplicantListView: React.FC<ApplicantListViewProps> = ({
   useEffect(() => {
     let cancelled = false;
 
-    const loadApplicantSummaries = async () => {
-      if (myHostedPosts.length === 0) return;
-
-      setIsSummaryLoading(true);
+    const loadPosts = async () => {
+      setIsPostsLoading(true);
       try {
-        const results = await Promise.all(
-          myHostedPosts.map(async (post) => ({
-            postId: post.id,
-            applicants: await onFetchApplicants(post.id),
-          })),
-        );
-
-        if (cancelled) return;
-
-        setApplicantsByPostId((prev) => {
-          const next = { ...prev };
-          results.forEach(({ postId, applicants }) => {
-            next[postId] = applicants;
-          });
-          return next;
-        });
+        const result = await onFetchApplicantPosts();
+        if (!cancelled) {
+          setPosts(result);
+        }
       } catch (error) {
         if (!cancelled) {
-          console.error("Failed to load applicant summaries:", error);
-          alert("지원자 수를 불러오지 못했습니다. 다시 시도해주세요.");
+          console.error("Failed to load applicant post summaries:", error);
+          alert("지원자 게시글 목록을 불러오지 못했습니다. 다시 시도해주세요.");
         }
       } finally {
         if (!cancelled) {
-          setIsSummaryLoading(false);
+          setIsPostsLoading(false);
         }
       }
     };
 
-    void loadApplicantSummaries();
+    void loadPosts();
 
     return () => {
       cancelled = true;
     };
-  }, [myHostedPosts, onFetchApplicants]);
-
-  const postsWithApplicants = useMemo(
-    () =>
-      myHostedPosts.filter(
-        (post) => (applicantsByPostId[post.id]?.length ?? 0) > 0,
-      ),
-    [applicantsByPostId, myHostedPosts],
-  );
+  }, [onFetchApplicantPosts]);
 
   const handleTogglePost = async (postId: number) => {
     if (openPostId === postId) {
@@ -141,6 +114,34 @@ export const ApplicantListView: React.FC<ApplicantListViewProps> = ({
         applicant.userId === applicantId ? { ...applicant, status } : applicant,
       ),
     }));
+
+    if (status === "APPROVED") {
+      setPosts((prev) =>
+        prev.map((post) =>
+          post.postId === postId
+            ? {
+                ...post,
+                currentMembers: post.currentMembers + 1,
+                applicantCount: Math.max(post.applicantCount - 1, 0),
+              }
+            : post,
+        ),
+      );
+      return;
+    }
+
+    if (status === "REJECTED") {
+      setPosts((prev) =>
+        prev.map((post) =>
+          post.postId === postId
+            ? {
+                ...post,
+                applicantCount: Math.max(post.applicantCount - 1, 0),
+              }
+            : post,
+        ),
+      );
+    }
   };
 
   const handleApproveClick = async (postId: number, applicantId: number) => {
@@ -162,33 +163,28 @@ export const ApplicantListView: React.FC<ApplicantListViewProps> = ({
       />
 
       <div className="pt-16 px-4 space-y-4">
-        {myHostedPosts.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-[60vh] text-gray-400">
-            <ClipboardList size={48} className="mb-4 opacity-20" />
-            <p>내가 작성한 게시글이 없습니다.</p>
-          </div>
-        ) : isSummaryLoading ? (
+        {isPostsLoading ? (
           <div className="flex justify-center py-10">
             <div className="w-8 h-8 border-4 border-gps-500 border-t-transparent rounded-full animate-spin" />
           </div>
-        ) : postsWithApplicants.length === 0 ? (
+        ) : posts.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-[60vh] text-gray-400">
-            <Users size={48} className="mb-4 opacity-20" />
+            <ClipboardList size={48} className="mb-4 opacity-20" />
             <p>지원자가 있는 게시글이 없습니다.</p>
           </div>
         ) : (
-          postsWithApplicants.map((post) => {
-            const applicants = applicantsByPostId[post.id] ?? [];
-            const isOpen = openPostId === post.id;
-            const isLoading = loadingPostId === post.id;
+          posts.map((post) => {
+            const applicants = applicantsByPostId[post.postId] ?? [];
+            const isOpen = openPostId === post.postId;
+            const isLoading = loadingPostId === post.postId;
 
             return (
               <div
-                key={post.id}
+                key={post.postId}
                 className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"
               >
                 <button
-                  onClick={() => void handleTogglePost(post.id)}
+                  onClick={() => void handleTogglePost(post.postId)}
                   className="w-full text-left p-5 hover:bg-gray-50 transition-colors"
                 >
                   <div className="flex items-start justify-between gap-3 mb-3">
@@ -197,7 +193,7 @@ export const ApplicantListView: React.FC<ApplicantListViewProps> = ({
                         {post.category}
                       </span>
                       <span className="bg-gray-900 text-white text-xs px-2 py-1 rounded-md font-bold">
-                        {applicants.length}명 지원
+                        새로운 지원자 : {post.applicantCount}명
                       </span>
                     </div>
                     {isOpen ? (
@@ -214,24 +210,22 @@ export const ApplicantListView: React.FC<ApplicantListViewProps> = ({
                   <div className="flex items-center justify-between mt-4">
                     <div className="flex items-center gap-2 text-xs text-gray-500">
                       <MapPin size={14} className="text-gray-400" />
-                      {post.location}
+                      {post.locationName}
                     </div>
                     <div className="flex items-center gap-1 text-xs text-gray-500">
                       <Clock size={12} />
-                      {post.time}
+                      {post.meetingTime}
                     </div>
                   </div>
 
                   <div className="mt-4 flex items-center justify-between text-sm text-gray-600">
                     <div className="flex items-center gap-2">
                       <Users size={14} className="text-gray-400" />
-                      지원자 보기
+                      현재 확정 인원 현황
                     </div>
                     <span className="font-semibold text-gray-900">
-                      {applicantsByPostId[post.id]?.length || 0}/
-                      {post.maxMembers}명
+                      {post.currentMembers}/{post.maxMembers}명
                     </span>
-                    {/* TODO: 지원자 보기에는 accept된 사람만 보게 하는걸로 수정? */}
                   </div>
                 </button>
 
@@ -258,7 +252,7 @@ export const ApplicantListView: React.FC<ApplicantListViewProps> = ({
 
                           return (
                             <div
-                              key={`${post.id}-${applicant.userId}`}
+                              key={`${post.postId}-${applicant.userId}`}
                               className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm"
                             >
                               <div className="flex items-start gap-3">
@@ -299,7 +293,7 @@ export const ApplicantListView: React.FC<ApplicantListViewProps> = ({
                                   <button
                                     onClick={() =>
                                       void handleRejectClick(
-                                        post.id,
+                                        post.postId,
                                         applicant.userId,
                                       )
                                     }
@@ -310,7 +304,7 @@ export const ApplicantListView: React.FC<ApplicantListViewProps> = ({
                                   <button
                                     onClick={() =>
                                       void handleApproveClick(
-                                        post.id,
+                                        post.postId,
                                         applicant.userId,
                                       )
                                     }

@@ -1,4 +1,10 @@
-import { ApplicantInfo, Post, PostViewer, User } from "../types";
+import {
+  ApplicantInfo,
+  ApplicantPostSummary,
+  Post,
+  PostViewer,
+  User,
+} from "../types";
 import { getAccessToken } from "./authService";
 import { apiClient } from "./apiClient";
 
@@ -76,6 +82,17 @@ interface ApplicantInfoResponse {
   introduction?: string | null;
   status: ApplicantInfo["status"];
   appliedAt: string;
+}
+
+interface ApplicantPostSummaryResponse {
+  postId: number;
+  title: string;
+  category: string;
+  locationName: string;
+  meetingTime: string;
+  maxMembers: number;
+  currentMembers: number;
+  applicantCount: number;
 }
 
 interface ApplicantStatusRequest {
@@ -331,6 +348,23 @@ export const fetchPostApplicants = async (
     introduction: applicant.introduction ?? "",
     status: applicant.status,
     appliedAt: applicant.appliedAt,
+  }));
+};
+
+export const fetchMyApplicantPosts = async (): Promise<ApplicantPostSummary[]> => {
+  const res = await apiClient<ApiResponse<ApplicantPostSummaryResponse[]>>(
+    "/api/v1/posts/applications/my",
+  );
+
+  return res.data.map((post) => ({
+    postId: post.postId,
+    title: post.title,
+    category: post.category,
+    locationName: post.locationName,
+    meetingTime: post.meetingTime,
+    maxMembers: post.maxMembers,
+    currentMembers: post.currentMembers,
+    applicantCount: post.applicantCount,
   }));
 };
 
