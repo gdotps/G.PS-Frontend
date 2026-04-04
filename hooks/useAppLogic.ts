@@ -770,13 +770,13 @@ export const useAppLogic = () => {
     }
   };
 
-  const handleAddComment = async (text: string) => {
+  const handleAddComment = async (text: string, parentId?: number | null) => {
     if (!selectedPost) return;
 
     try {
       const createdComment = await apiCreateComment(selectedPost.id, {
         content: text,
-        parentId: null,
+        parentId: parentId ?? null,
       });
 
       const newComment: Comment = {
@@ -786,11 +786,23 @@ export const useAppLogic = () => {
         authorAvatar: currentUser.profileUrl,
         text: createdComment.content,
         timestamp: new Date(createdComment.createdAt).getTime(),
+        replies: [],
       };
+
+      const nextComments = parentId
+        ? (selectedPost.comments || []).map((comment) =>
+            comment.id === parentId
+              ? {
+                  ...comment,
+                  replies: [...(comment.replies || []), newComment],
+                }
+              : comment,
+          )
+        : [...(selectedPost.comments || []), newComment];
 
       const updatedPost = {
         ...selectedPost,
-        comments: [...(selectedPost.comments || []), newComment],
+        comments: nextComments,
       };
       setPosts((prev) =>
         prev.map((p) => (p.id === selectedPost.id ? updatedPost : p)),

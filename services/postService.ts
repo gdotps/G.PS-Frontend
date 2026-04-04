@@ -1,6 +1,7 @@
 import {
   ApplicantInfo,
   ApplicantPostSummary,
+  Comment,
   Post,
   PostViewer,
   User,
@@ -48,12 +49,28 @@ export interface PostResponse {
     avatarUrl?: string;
   };
   comments?: Array<{
-    id: number;
-    authorId: number;
-    authorName: string;
+    commentId?: number;
+    id?: number;
+    author?: string;
+    authorName?: string;
+    authorId?: number;
     authorAvatar?: string;
-    text: string;
-    timestamp: number;
+    content?: string;
+    text?: string;
+    createdAt?: string;
+    timestamp?: number;
+    children?: Array<{
+      commentId?: number;
+      id?: number;
+      author?: string;
+      authorName?: string;
+      authorId?: number;
+      authorAvatar?: string;
+      content?: string;
+      text?: string;
+      createdAt?: string;
+      timestamp?: number;
+    }>;
   }>;
   viewer?: {
     isAuthor?: boolean;
@@ -154,6 +171,32 @@ const normalizeHomePostsPayload = (
   return [];
 };
 
+const parseCommentTimestamp = (value?: string | number | null): number => {
+  if (typeof value === "number") return value;
+  if (!value) return Date.now();
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? Date.now() : parsed;
+};
+
+const mapNestedComment = (
+  comment:
+    | NonNullable<PostResponse["comments"]>[number]
+    | NonNullable<
+        NonNullable<PostResponse["comments"]>[number]["children"]
+      >[number],
+): Comment => ({
+  id: comment.commentId ?? comment.id ?? 0,
+  authorId: comment.authorId ?? 0,
+  authorName: comment.authorName ?? comment.author ?? "",
+  authorAvatar: comment.authorAvatar,
+  text: comment.content ?? comment.text ?? "",
+  timestamp: parseCommentTimestamp(comment.createdAt ?? comment.timestamp),
+  replies:
+    "children" in comment && Array.isArray(comment.children)
+      ? comment.children.map((child) => mapNestedComment(child))
+      : [],
+});
+
 const mapPostResponseToPost = (post: PostResponse): Post => ({
   id: post.postId,
   authorId: post.author?.userId ?? post.author?.id ?? 0,
@@ -184,14 +227,7 @@ const mapPostResponseToPost = (post: PostResponse): Post => ({
         ? Date.parse(post.createdAt) || Date.now()
         : Date.now(),
   comments:
-    post.comments?.map((comment) => ({
-      id: comment.id,
-      authorId: comment.authorId,
-      authorName: comment.authorName,
-      authorAvatar: comment.authorAvatar,
-      text: comment.text,
-      timestamp: comment.timestamp,
-    })) ?? [],
+    post.comments?.map((comment) => mapNestedComment(comment)) ?? [],
   applicants:
     post.applicants?.map(
       (applicant): User => ({

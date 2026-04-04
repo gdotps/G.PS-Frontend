@@ -86,6 +86,7 @@ export interface Comment {
   authorAvatar?: string;
   text: string;
   timestamp: number;
+  replies?: Comment[];
 }
 
 export interface PostViewer {
