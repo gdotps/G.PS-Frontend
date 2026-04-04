@@ -445,3 +445,9 @@ export const createComment = async (
 
   return res.data;
 };
+
+export const deleteComment = async (commentId: number): Promise<void> => {
+  await apiClient<ApiResponse<void>>(`/api/v1/comments/${commentId}`, {
+    method: "DELETE",
+  });
+};

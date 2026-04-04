@@ -19,6 +19,7 @@ import {
   cancelPostApplication as apiCancelPostApplication,
   changePostApplicantStatus as apiChangePostApplicantStatus,
   createComment as apiCreateComment,
+  deleteComment as apiDeleteComment,
   createPost as apiCreatePost,
   fetchMyApplicantPosts as apiFetchMyApplicantPosts,
   fetchPostApplicants as apiFetchPostApplicants,
@@ -814,6 +815,51 @@ export const useAppLogic = () => {
     }
   };
 
+  const handleDeleteComment = async (commentId: number) => {
+    if (!selectedPost) return;
+    if (!window.confirm("댓글을 삭제하시겠어요?")) return;
+
+    try {
+      await apiDeleteComment(commentId);
+
+      const nextComments = (selectedPost.comments || []).map((comment) => {
+        if (comment.id === commentId) {
+          return {
+            ...comment,
+            text: "삭제된 댓글입니다.",
+            replies: comment.replies || [],
+          };
+        }
+
+        if ((comment.replies?.length ?? 0) > 0) {
+          return {
+            ...comment,
+            replies: (comment.replies || []).map((reply) =>
+              reply.id === commentId
+                ? { ...reply, text: "삭제된 댓글입니다." }
+                : reply,
+            ),
+          };
+        }
+
+        return comment;
+      });
+
+      const updatedPost = {
+        ...selectedPost,
+        comments: nextComments,
+      };
+
+      setPosts((prev) =>
+        prev.map((p) => (p.id === selectedPost.id ? updatedPost : p)),
+      );
+      setSelectedPost(updatedPost);
+    } catch (error) {
+      console.error("Failed to delete comment:", error);
+      alert("댓글 삭제에 실패했습니다. 다시 시도해주세요.");
+    }
+  };
+
   const handleSendMessage = async (text: string) => {
     if (!selectedChatId) return;
     const trimmedText = text.trim();
@@ -1265,6 +1311,7 @@ export const useAppLogic = () => {
     handleApprove,
     handleReject,
     handleAddComment,
+    handleDeleteComment,
     handleSendMessage,
     handleDeleteMessage,
     handleLeaveChat,

@@ -43,6 +43,7 @@ export default function App() {
     handleApprove,
     handleReject,
     handleAddComment,
+    handleDeleteComment,
     handleSendMessage,
     handleDeleteMessage,
     handleLeaveChat,
@@ -133,6 +134,7 @@ export default function App() {
             onApprove={handleApprove}
             onReject={handleReject}
             onAddComment={handleAddComment}
+            onDeleteComment={handleDeleteComment}
             onEdit={() => goToEditPost(selectedPost)}
             onDelete={handleDeletePost}
           />

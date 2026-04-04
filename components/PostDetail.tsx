@@ -25,6 +25,7 @@ export const PostDetail: React.FC<{
   onApprove: (postId: number, applicantId: number) => void;
   onReject: (postId: number, applicantId: number) => void;
   onAddComment: (text: string, parentId?: number | null) => void;
+  onDeleteComment: (commentId: number) => void;
   onEdit: () => void;
   onDelete: (postId: number) => void;
 }> = ({
@@ -38,6 +39,7 @@ export const PostDetail: React.FC<{
   onApprove,
   onReject,
   onAddComment,
+  onDeleteComment,
   onEdit,
   onDelete,
 }) => {
@@ -54,6 +56,13 @@ export const PostDetail: React.FC<{
     (count, comment) => count + 1 + (comment.replies?.length ?? 0),
     0,
   );
+
+  const isCurrentUserCommentAuthor = (authorId: number, authorName: string) => {
+    return (
+      authorId === currentUser.userId ||
+      (!authorId && authorName === currentUser.nickname)
+    );
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -253,32 +262,49 @@ export const PostDetail: React.FC<{
                       alt="avatar"
                     />
                     <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="text-xs font-bold text-gray-900">
-                          {comment.authorName}
-                        </p>
-                        <span className="text-[10px] text-gray-400">
-                          {new Date(comment.timestamp).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </span>
+                      <div className="flex items-center justify-between gap-3 mb-1">
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs font-bold text-gray-900">
+                            {comment.authorName}
+                          </p>
+                          <span className="text-[10px] text-gray-400">
+                            {new Date(comment.timestamp).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        </div>
+                        {isCurrentUserCommentAuthor(
+                          comment.authorId,
+                          comment.authorName,
+                        ) && (
+                          <button
+                            type="button"
+                            onClick={() => onDeleteComment(comment.id)}
+                            className="text-gray-400 hover:text-red-500 transition-colors"
+                            aria-label="댓글 삭제"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
                       </div>
                       <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-r-xl rounded-bl-xl inline-block">
                         {comment.text}
                       </p>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setReplyTarget({
-                            id: comment.id,
-                            authorName: comment.authorName,
-                          })
-                        }
-                        className="mt-2 block text-xs font-semibold text-gray-500 hover:text-gray-900 transition-colors"
-                      >
-                        답글 달기
-                      </button>
+                      {comment.text !== "삭제된 댓글입니다." && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setReplyTarget({
+                              id: comment.id,
+                              authorName: comment.authorName,
+                            })
+                          }
+                          className="mt-2 block text-xs font-semibold text-gray-500 hover:text-gray-900 transition-colors"
+                        >
+                          답글 달기
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -290,19 +316,34 @@ export const PostDetail: React.FC<{
                             <CornerDownRight size={14} />
                           </div>
                           <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <p className="text-xs font-bold text-gray-900">
-                                {reply.authorName}
-                              </p>
-                              <span className="text-[10px] text-gray-400">
-                                {new Date(reply.timestamp).toLocaleTimeString(
-                                  [],
-                                  {
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  },
-                                )}
-                              </span>
+                            <div className="flex items-center justify-between gap-3 mb-1">
+                              <div className="flex items-center gap-2">
+                                <p className="text-xs font-bold text-gray-900">
+                                  {reply.authorName}
+                                </p>
+                                <span className="text-[10px] text-gray-400">
+                                  {new Date(reply.timestamp).toLocaleTimeString(
+                                    [],
+                                    {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    },
+                                  )}
+                                </span>
+                              </div>
+                              {isCurrentUserCommentAuthor(
+                                reply.authorId,
+                                reply.authorName,
+                              ) && (
+                                <button
+                                  type="button"
+                                  onClick={() => onDeleteComment(reply.id)}
+                                  className="text-gray-400 hover:text-red-500 transition-colors"
+                                  aria-label="답글 삭제"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              )}
                             </div>
                             <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-r-xl rounded-bl-xl inline-block">
                               {reply.text}
