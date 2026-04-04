@@ -34,6 +34,7 @@ export default function App() {
     selectedChatIsManager,
     goToHome,
     goToPostDetail,
+    goToPostDetailById,
     goToChatList,
     goToChatRoom,
     toggleLike,
@@ -61,6 +62,7 @@ export default function App() {
     checkLoginStatus, // Updated hook name
     goToEditPost,
     editPost,
+    handleDeletePost,
     showRejoinConfirm,
     handleRejoinConfirm,
     handleRejoinCancel,
@@ -91,7 +93,9 @@ export default function App() {
         return (
           <ProfileSetup
             initialNickname={
-              currentUser.nickname === "상경한꿈돌이" ? "" : currentUser.nickname
+              currentUser.nickname === "상경한꿈돌이"
+                ? ""
+                : currentUser.nickname
             }
             onComplete={handleProfileSetupSubmit}
           />
@@ -127,13 +131,16 @@ export default function App() {
             onApprove={handleApprove}
             onReject={handleReject}
             onAddComment={handleAddComment}
-            onEdit={goToEditPost}
+            onEdit={() => goToEditPost(selectedPost)}
+            onDelete={handleDeletePost}
           />
         ) : null;
       case ViewState.MAP:
         return <MapView posts={posts} onViewPost={goToPostDetail} />;
       case ViewState.CHAT_LIST:
-        return <ChatList chats={chats} posts={posts} onSelectChat={goToChatRoom} />;
+        return (
+          <ChatList chats={chats} posts={posts} onSelectChat={goToChatRoom} />
+        );
       case ViewState.CHAT_ROOM:
         const currentChat = chats.find((c) => c.id === selectedChatId);
         return currentChat ? (
@@ -158,7 +165,7 @@ export default function App() {
         return selectedPost ? (
           <CreatePostView
             initialPost={selectedPost}
-            onCancel={() => setCurrentView(ViewState.POST_DETAIL)}
+            onCancel={() => void goToPostDetailById(selectedPost.id)}
             onCreate={editPost}
           />
         ) : null;

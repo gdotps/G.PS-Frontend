@@ -1,9 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  CURRENT_USER,
-  MOCK_NOTIFICATIONS,
-  MOCK_POSTS,
-} from "../constants";
+import { CURRENT_USER, MOCK_NOTIFICATIONS, MOCK_POSTS } from "../constants";
 import {
   cleanUpUrl,
   parseCallbackError,
@@ -20,7 +16,10 @@ import {
 } from "../services/userService";
 import {
   createPost as apiCreatePost,
+  fetchHomePosts as apiFetchHomePosts,
+  fetchPostById as apiFetchPostById,
   updatePost as apiUpdatePost,
+  deletePost as apiDeletePost,
   PostRequest,
 } from "../services/postService";
 import { toggleLike as apiToggleLike } from "../services/likeService";
@@ -64,20 +63,27 @@ export const useAppLogic = () => {
   const [notifications, setNotifications] =
     useState<Notification[]>(MOCK_NOTIFICATIONS);
   const [bookmarkedIds, setBookmarkedIds] = useState<number[]>([]);
-  const [selectedChatParticipants, setSelectedChatParticipants] = useState<User[]>([]);
+  const [selectedChatParticipants, setSelectedChatParticipants] = useState<
+    User[]
+  >([]);
   const [selectedChatIsManager, setSelectedChatIsManager] = useState(false);
   const [isLikeLoading, setIsLikeLoading] = useState<boolean>(false);
   const [showRejoinConfirm, setShowRejoinConfirm] = useState(false);
   const [isProfileLoading, setIsProfileLoading] = useState(false);
   const [myApplications, setMyApplications] = useState<ApplicationItem[]>([]);
   const [myApplicationsPage, setMyApplicationsPage] = useState<number>(0);
-  const [myApplicationsIsLast, setMyApplicationsIsLast] = useState<boolean>(false);
-  const [isApplicationsLoading, setIsApplicationsLoading] = useState<boolean>(false);
+  const [myApplicationsIsLast, setMyApplicationsIsLast] =
+    useState<boolean>(false);
+  const [isApplicationsLoading, setIsApplicationsLoading] =
+    useState<boolean>(false);
   const [likedMeetings, setLikedMeetings] = useState<LikedMeeting[]>([]);
   const [likedMeetingsPage, setLikedMeetingsPage] = useState<number>(0);
-  const [likedMeetingsIsLast, setLikedMeetingsIsLast] = useState<boolean>(false);
-  const [likedMeetingsTotalElements, setLikedMeetingsTotalElements] = useState<number>(0);
-  const [isLikedMeetingsLoading, setIsLikedMeetingsLoading] = useState<boolean>(false);
+  const [likedMeetingsIsLast, setLikedMeetingsIsLast] =
+    useState<boolean>(false);
+  const [likedMeetingsTotalElements, setLikedMeetingsTotalElements] =
+    useState<number>(0);
+  const [isLikedMeetingsLoading, setIsLikedMeetingsLoading] =
+    useState<boolean>(false);
 
   const mapIncomingMessageToState = (item: ChatIncomingMessage): Message => ({
     id: item.id,
@@ -96,7 +102,9 @@ export const useAppLogic = () => {
     return /^[a-f0-9]{24}$/i.test(value) || /^\d+$/.test(value);
   };
 
-  const mapHistoryToMessages = (history: Awaited<ReturnType<typeof getChatRoomHistory>>): Message[] => {
+  const mapHistoryToMessages = (
+    history: Awaited<ReturnType<typeof getChatRoomHistory>>,
+  ): Message[] => {
     return history.map((item) => {
       const isDeleted = Boolean(item.deleted) || item.messageType === "DELETED";
       return {
@@ -115,7 +123,10 @@ export const useAppLogic = () => {
     });
   };
 
-  const applyDeletedMessageToChat = (chat: ChatRoom, messageId: string): ChatRoom => {
+  const applyDeletedMessageToChat = (
+    chat: ChatRoom,
+    messageId: string,
+  ): ChatRoom => {
     let changed = false;
     const nextMessages = chat.messages.map((message) => {
       if (String(message.id) !== String(messageId)) return message;
@@ -146,31 +157,34 @@ export const useAppLogic = () => {
     };
   };
 
-  const updateChatMessages = useCallback((chatId: number, mappedMessages: Message[]) => {
-    setChats((prev) =>
-      prev.map((chat) =>
-        chat.id === chatId
-          ? {
-              ...chat,
-              messages: mappedMessages,
-              lastMessage:
-                mappedMessages.length > 0
-                  ? mappedMessages[mappedMessages.length - 1].text
-                  : "",
-              lastMessageTime:
-                mappedMessages.length > 0
-                  ? new Date(
-                      mappedMessages[mappedMessages.length - 1].timestamp,
-                    ).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })
-                  : "",
-            }
-          : chat,
-      ),
-    );
-  }, []);
+  const updateChatMessages = useCallback(
+    (chatId: number, mappedMessages: Message[]) => {
+      setChats((prev) =>
+        prev.map((chat) =>
+          chat.id === chatId
+            ? {
+                ...chat,
+                messages: mappedMessages,
+                lastMessage:
+                  mappedMessages.length > 0
+                    ? mappedMessages[mappedMessages.length - 1].text
+                    : "",
+                lastMessageTime:
+                  mappedMessages.length > 0
+                    ? new Date(
+                        mappedMessages[mappedMessages.length - 1].timestamp,
+                      ).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : "",
+              }
+            : chat,
+        ),
+      );
+    },
+    [],
+  );
 
   const markUnreadMessagesInRoom = useCallback(
     async (chatId: number, messages: Message[]) => {
@@ -209,114 +223,122 @@ export const useAppLogic = () => {
     [markUnreadMessagesInRoom, updateChatMessages],
   );
 
-  const appendIncomingMessage = useCallback((incoming: ChatIncomingMessage) => {
-    const incomingMessage = mapIncomingMessageToState(incoming);
-    const incomingRoomId = Number(incoming.roomId);
+  const appendIncomingMessage = useCallback(
+    (incoming: ChatIncomingMessage) => {
+      const incomingMessage = mapIncomingMessageToState(incoming);
+      const incomingRoomId = Number(incoming.roomId);
 
-    setChats((prev) =>
-      prev.map((chat) => {
-        if (chat.id !== incomingRoomId) return chat;
+      setChats((prev) =>
+        prev.map((chat) => {
+          if (chat.id !== incomingRoomId) return chat;
 
-        const alreadyExists = chat.messages.some(
-          (message) => String(message.id) === String(incomingMessage.id),
-        );
-        if (alreadyExists) return chat;
+          const alreadyExists = chat.messages.some(
+            (message) => String(message.id) === String(incomingMessage.id),
+          );
+          if (alreadyExists) return chat;
 
-        const optimisticMessageIndex = chat.messages.findIndex((message) => {
-          if (!String(message.id).startsWith("local-")) return false;
-          if (message.senderId !== incomingMessage.senderId) return false;
-          if (message.text !== incomingMessage.text) return false;
-          return Math.abs(message.timestamp - incomingMessage.timestamp) <= 15000;
-        });
+          const optimisticMessageIndex = chat.messages.findIndex((message) => {
+            if (!String(message.id).startsWith("local-")) return false;
+            if (message.senderId !== incomingMessage.senderId) return false;
+            if (message.text !== incomingMessage.text) return false;
+            return (
+              Math.abs(message.timestamp - incomingMessage.timestamp) <= 15000
+            );
+          });
 
-        if (optimisticMessageIndex >= 0) {
-          const nextMessages = [...chat.messages];
-          const prevOptimistic = nextMessages[optimisticMessageIndex];
-          nextMessages[optimisticMessageIndex] = {
-            ...prevOptimistic,
-            ...incomingMessage,
-            readByUserIds: incoming.readBy ?? prevOptimistic.readByUserIds ?? [],
-          };
+          if (optimisticMessageIndex >= 0) {
+            const nextMessages = [...chat.messages];
+            const prevOptimistic = nextMessages[optimisticMessageIndex];
+            nextMessages[optimisticMessageIndex] = {
+              ...prevOptimistic,
+              ...incomingMessage,
+              readByUserIds:
+                incoming.readBy ?? prevOptimistic.readByUserIds ?? [],
+            };
+
+            return {
+              ...chat,
+              messages: nextMessages,
+              lastMessage: incomingMessage.text,
+              lastMessageTime: new Date(
+                incomingMessage.timestamp,
+              ).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+            };
+          }
 
           return {
             ...chat,
-            messages: nextMessages,
-            lastMessage: incomingMessage.text,
-            lastMessageTime: new Date(incomingMessage.timestamp).toLocaleTimeString(
-              [],
+            messages: [
+              ...chat.messages,
               {
-                hour: "2-digit",
-                minute: "2-digit",
+                ...incomingMessage,
+                readByUserIds: incoming.readBy ?? [],
               },
-            ),
-          };
-        }
-
-        return {
-          ...chat,
-          messages: [
-            ...chat.messages,
-            {
-              ...incomingMessage,
-              readByUserIds: incoming.readBy ?? [],
-            },
-          ],
-          lastMessage: incomingMessage.text,
-          lastMessageTime: new Date(incomingMessage.timestamp).toLocaleTimeString(
-            [],
-            {
+            ],
+            lastMessage: incomingMessage.text,
+            lastMessageTime: new Date(
+              incomingMessage.timestamp,
+            ).toLocaleTimeString([], {
               hour: "2-digit",
               minute: "2-digit",
-            },
-          ),
-        };
-      }),
-    );
+            }),
+          };
+        }),
+      );
 
-    if (
-      selectedChatId === incomingRoomId &&
-      incomingMessage.senderId !== currentUser.userId
-    ) {
-      if (hasPersistedMessageId(incomingMessage.id)) {
-        void markChatMessageAsRead({
-          roomId: incomingRoomId,
-          messageId: String(incomingMessage.id),
-          userId: currentUser.userId,
-        });
-      } else {
-        void syncRoomHistory(incomingRoomId, true);
+      if (
+        selectedChatId === incomingRoomId &&
+        incomingMessage.senderId !== currentUser.userId
+      ) {
+        if (hasPersistedMessageId(incomingMessage.id)) {
+          void markChatMessageAsRead({
+            roomId: incomingRoomId,
+            messageId: String(incomingMessage.id),
+            userId: currentUser.userId,
+          });
+        } else {
+          void syncRoomHistory(incomingRoomId, true);
+        }
       }
-    }
-  }, [currentUser.userId, selectedChatId, syncRoomHistory]);
+    },
+    [currentUser.userId, selectedChatId, syncRoomHistory],
+  );
 
-  const applyReadEvent = useCallback((event: ChatMessageReadEvent) => {
-    let matched = false;
+  const applyReadEvent = useCallback(
+    (event: ChatMessageReadEvent) => {
+      let matched = false;
 
-    setChats((prev) =>
-      prev.map((chat) => {
-        if (chat.id !== event.roomId) return chat;
+      setChats((prev) =>
+        prev.map((chat) => {
+          if (chat.id !== event.roomId) return chat;
 
-        return {
-          ...chat,
-          messages: chat.messages.map((message) => {
-            if (String(message.id) !== String(event.messageId)) return message;
-            matched = true;
-            const baseReadBy = message.readByUserIds ?? [];
-            if (baseReadBy.includes(event.userId)) return message;
-            return {
-              ...message,
-              readByUserIds: [...baseReadBy, event.userId],
-            };
-          }),
-        };
-      }),
-    );
+          return {
+            ...chat,
+            messages: chat.messages.map((message) => {
+              if (String(message.id) !== String(event.messageId))
+                return message;
+              matched = true;
+              const baseReadBy = message.readByUserIds ?? [];
+              if (baseReadBy.includes(event.userId)) return message;
+              return {
+                ...message,
+                readByUserIds: [...baseReadBy, event.userId],
+              };
+            }),
+          };
+        }),
+      );
 
-    // Optimistic local IDs(local-*)와 서버 messageId가 불일치하는 경우를 보정한다.
-    if (!matched) {
-      void syncRoomHistory(event.roomId, false);
-    }
-  }, [syncRoomHistory]);
+      // Optimistic local IDs(local-*)와 서버 messageId가 불일치하는 경우를 보정한다.
+      if (!matched) {
+        void syncRoomHistory(event.roomId, false);
+      }
+    },
+    [syncRoomHistory],
+  );
 
   const applyDeleteEvent = useCallback((messageId: string) => {
     setChats((prev) =>
@@ -338,15 +360,50 @@ export const useAppLogic = () => {
   const goToHome = () => setCurrentView(ViewState.HOME);
   const goToProfileSetup = () => setCurrentView(ViewState.PROFILE_SETUP);
 
-  const goToPostDetail = (post: Post) => {
+  const goToPostDetail = async (post: Post) => {
     setSelectedPost(post);
     setCurrentView(ViewState.POST_DETAIL);
+    try {
+      const detailedPost = await apiFetchPostById(post.id);
+      setSelectedPost(detailedPost);
+      setPosts((prev) =>
+        prev.map((currentPost) =>
+          currentPost.id === detailedPost.id ? detailedPost : currentPost,
+        ),
+      );
+    } catch (error) {
+      console.error("게시글 상세 조회 오류:", error);
+    }
+  };
+
+  const goToPostDetailById = async (postId: number) => {
+    setCurrentView(ViewState.POST_DETAIL);
+    try {
+      const detailedPost = await apiFetchPostById(postId);
+      setSelectedPost(detailedPost);
+      setPosts((prev) =>
+        prev.map((currentPost) =>
+          currentPost.id === detailedPost.id ? detailedPost : currentPost,
+        ),
+      );
+    } catch (error) {
+      console.error("게시글 상세 재조회 오류:", error);
+    }
   };
 
   const goToEditPost = (post: Post) => {
     setSelectedPost(post);
     setCurrentView(ViewState.EDIT_POST);
   };
+
+  const loadHomePosts = useCallback(async () => {
+    try {
+      const homePosts = await apiFetchHomePosts();
+      setPosts(homePosts);
+    } catch (error) {
+      console.error("홈 게시글 조회 오류:", error);
+    }
+  }, []);
 
   const loadChatRooms = useCallback(async () => {
     try {
@@ -515,13 +572,23 @@ export const useAppLogic = () => {
     if (!likedMeetingsIsLast && !isLikedMeetingsLoading) {
       fetchLikedMeetings(likedMeetingsPage + 1);
     }
-  }, [likedMeetingsIsLast, isLikedMeetingsLoading, likedMeetingsPage, fetchLikedMeetings]);
+  }, [
+    likedMeetingsIsLast,
+    isLikedMeetingsLoading,
+    likedMeetingsPage,
+    fetchLikedMeetings,
+  ]);
 
   const loadMoreApplications = useCallback(() => {
     if (!myApplicationsIsLast && !isApplicationsLoading) {
       fetchMyApplications(myApplicationsPage + 1);
     }
-  }, [myApplicationsIsLast, isApplicationsLoading, myApplicationsPage, fetchMyApplications]);
+  }, [
+    myApplicationsIsLast,
+    isApplicationsLoading,
+    myApplicationsPage,
+    fetchMyApplications,
+  ]);
 
   // 액션
   const toggleLike = async (postId: number) => {
@@ -539,7 +606,9 @@ export const useAppLogic = () => {
       // 서버 응답으로 상태 확정
       setBookmarkedIds((prev) =>
         result.isLiked
-          ? prev.includes(postId) ? prev : [...prev, postId]
+          ? prev.includes(postId)
+            ? prev
+            : [...prev, postId]
           : prev.filter((id) => id !== postId),
       );
     } catch {
@@ -663,13 +732,12 @@ export const useAppLogic = () => {
               ...chat,
               messages: [...chat.messages, optimisticMessage],
               lastMessage: trimmedText,
-              lastMessageTime: new Date(optimisticMessage.timestamp).toLocaleTimeString(
-                [],
-                {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                },
-              ),
+              lastMessageTime: new Date(
+                optimisticMessage.timestamp,
+              ).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
             }
           : chat,
       ),
@@ -708,7 +776,9 @@ export const useAppLogic = () => {
     const prevChats = chats;
     setChats((current) =>
       current.map((chat) =>
-        chat.id === selectedChatId ? applyDeletedMessageToChat(chat, messageId) : chat,
+        chat.id === selectedChatId
+          ? applyDeletedMessageToChat(chat, messageId)
+          : chat,
       ),
     );
 
@@ -731,7 +801,9 @@ export const useAppLogic = () => {
 
       const targetPost = posts.find((post) => post.id === targetChat.postId);
       if (!targetPost) {
-        alert("게시글 정보를 찾을 수 없습니다. 홈에서 게시글을 다시 확인해주세요.");
+        alert(
+          "게시글 정보를 찾을 수 없습니다. 홈에서 게시글을 다시 확인해주세요.",
+        );
         return;
       }
 
@@ -762,6 +834,11 @@ export const useAppLogic = () => {
       unsubscribeChatRoom();
     };
   }, []);
+
+  useEffect(() => {
+    if (currentView !== ViewState.HOME) return;
+    void loadHomePosts();
+  }, [currentView, loadHomePosts]);
 
   // 신규 유저 프로필 설정 완료
   // PATCH /api/v1/users/me 로 닉네임/소개 저장 후 홈으로 이동
@@ -821,7 +898,12 @@ export const useAppLogic = () => {
   };
 
   const handleDeleteAccount = async () => {
-    if (!window.confirm("정말로 탈퇴하시겠습니까?\n탈퇴 후 30일간 데이터가 보관되며, 이후 완전히 삭제됩니다.")) return;
+    if (
+      !window.confirm(
+        "정말로 탈퇴하시겠습니까?\n탈퇴 후 30일간 데이터가 보관되며, 이후 완전히 삭제됩니다.",
+      )
+    )
+      return;
     try {
       await withdrawUser();
     } catch {
@@ -972,10 +1054,33 @@ export const useAppLogic = () => {
     }
   };
 
+  const handleDeletePost = async (postId: number) => {
+    const targetPost = posts.find((post) => post.id === postId);
+    if (!targetPost) return;
+
+    if (!window.confirm("정말로 이 게시글을 삭제하시겠습니까?")) {
+      return;
+    }
+
+    try {
+      await apiDeletePost(postId);
+      setPosts((prev) => prev.filter((post) => post.id !== postId));
+      if (selectedPost?.id === postId) {
+        setSelectedPost(null);
+      }
+      setCurrentView(ViewState.HOME);
+      alert("게시글이 삭제되었습니다.");
+    } catch (error) {
+      console.error("게시글 삭제 실패:", error);
+      alert("게시글 삭제에 실패했습니다. 다시 시도해주세요.");
+    }
+  };
+
   const OAUTH_ERROR_MESSAGES: Record<string, string> = {
     access_denied: "로그인을 취소했습니다.",
     server_error: "서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
-    temporarily_unavailable: "서비스가 일시적으로 이용 불가합니다. 잠시 후 다시 시도해주세요.",
+    temporarily_unavailable:
+      "서비스가 일시적으로 이용 불가합니다. 잠시 후 다시 시도해주세요.",
   };
 
   // OAuth2 콜백 처리 및 로그인 상태 확인
@@ -988,7 +1093,8 @@ export const useAppLogic = () => {
     // 1. OAuth2 콜백 에러 처리
     const callbackError = parseCallbackError();
     if (callbackError) {
-      const message = OAUTH_ERROR_MESSAGES[callbackError] ?? "로그인에 실패했습니다.";
+      const message =
+        OAUTH_ERROR_MESSAGES[callbackError] ?? "로그인에 실패했습니다.";
       alert(message);
       cleanUpUrl();
       return;
@@ -1049,6 +1155,7 @@ export const useAppLogic = () => {
     // 핸들러
     goToHome,
     goToPostDetail,
+    goToPostDetailById,
     goToChatRoom,
     toggleLike,
     handleJoin,
@@ -1060,6 +1167,7 @@ export const useAppLogic = () => {
     handleDeleteMessage,
     handleLeaveChat,
     createPost,
+    handleDeletePost,
     goToEditPost,
     editPost,
     // 프로필 설정
