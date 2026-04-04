@@ -105,6 +105,18 @@ interface ApplicantStatusResponse {
   status: ApplicantInfo["status"];
 }
 
+interface CreateCommentRequest {
+  content: string;
+  parentId?: number | null;
+}
+
+interface CreateCommentResponse {
+  commentId: number;
+  content: string;
+  authorNickname: string;
+  createdAt: string;
+}
+
 interface ApiResponse<T> {
   success: boolean;
   message: string;
@@ -376,6 +388,21 @@ export const changePostApplicantStatus = async (
     `/api/v1/posts/${postId}/applicants`,
     {
       method: "PATCH",
+      body: JSON.stringify(request),
+    },
+  );
+
+  return res.data;
+};
+
+export const createComment = async (
+  postId: number,
+  request: CreateCommentRequest,
+): Promise<CreateCommentResponse> => {
+  const res = await apiClient<ApiResponse<CreateCommentResponse>>(
+    `/api/v1/posts/${postId}/comments`,
+    {
+      method: "POST",
       body: JSON.stringify(request),
     },
   );

@@ -18,6 +18,7 @@ import {
   applyToPost as apiApplyToPost,
   cancelPostApplication as apiCancelPostApplication,
   changePostApplicantStatus as apiChangePostApplicantStatus,
+  createComment as apiCreateComment,
   createPost as apiCreatePost,
   fetchMyApplicantPosts as apiFetchMyApplicantPosts,
   fetchPostApplicants as apiFetchPostApplicants,
@@ -769,22 +770,36 @@ export const useAppLogic = () => {
     }
   };
 
-  const handleAddComment = (text: string) => {
+  const handleAddComment = async (text: string) => {
     if (!selectedPost) return;
-    const newComment: Comment = {
-      id: Date.now(), // comment Id 나중에 다시 number로 매치해야함
-      authorId: currentUser.userId,
-      authorName: currentUser.nickname,
-      authorAvatar: currentUser.profileUrl,
-      text: text,
-      timestamp: Date.now(),
-    };
-    const updatedPost = {
-      ...selectedPost,
-      comments: [...(selectedPost.comments || []), newComment],
-    };
-    setPosts(posts.map((p) => (p.id === selectedPost.id ? updatedPost : p)));
-    setSelectedPost(updatedPost);
+
+    try {
+      const createdComment = await apiCreateComment(selectedPost.id, {
+        content: text,
+        parentId: null,
+      });
+
+      const newComment: Comment = {
+        id: createdComment.commentId,
+        authorId: currentUser.userId,
+        authorName: createdComment.authorNickname || currentUser.nickname,
+        authorAvatar: currentUser.profileUrl,
+        text: createdComment.content,
+        timestamp: new Date(createdComment.createdAt).getTime(),
+      };
+
+      const updatedPost = {
+        ...selectedPost,
+        comments: [...(selectedPost.comments || []), newComment],
+      };
+      setPosts((prev) =>
+        prev.map((p) => (p.id === selectedPost.id ? updatedPost : p)),
+      );
+      setSelectedPost(updatedPost);
+    } catch (error) {
+      console.error("Failed to create comment:", error);
+      alert("?? ??? ??????. ?? ??????.");
+    }
   };
 
   const handleSendMessage = async (text: string) => {
