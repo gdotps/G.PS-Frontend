@@ -52,7 +52,9 @@ export const PostDetail: React.FC<{
   };
 
   const isHost = post.authorId === currentUser.userId;
-  const hasApplied = applicants.some((a) => a.userId === currentUser.userId);
+  const hasApplied =
+    post.viewer?.hasApplied ??
+    applicants.some((a) => a.userId === currentUser.userId);
 
   return (
     <div className="bg-white min-h-screen pb-32">
@@ -300,7 +302,7 @@ export const PostDetail: React.FC<{
           {isHost
             ? "내가 만든 모임입니다."
             : hasApplied
-              ? "참여 취소하기"
+              ? "참여 취소"
               : "참여하기 (프로필 전송)"}
         </button>
       </div>

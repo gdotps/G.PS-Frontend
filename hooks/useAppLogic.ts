@@ -15,6 +15,8 @@ import {
   withdrawUser,
 } from "../services/userService";
 import {
+  applyToPost as apiApplyToPost,
+  cancelPostApplication as apiCancelPostApplication,
   createPost as apiCreatePost,
   fetchHomePosts as apiFetchHomePosts,
   fetchPostById as apiFetchPostById,
@@ -622,33 +624,76 @@ export const useAppLogic = () => {
     }
   };
 
-  const handleJoin = () => {
+  const handleJoin = async () => {
     if (!selectedPost) return;
-    if (selectedPost.applicants?.some((a) => a.userId === currentUser.userId)) {
+    if (
+      selectedPost.viewer?.hasApplied ||
+      selectedPost.applicants?.some((a) => a.userId === currentUser.userId)
+    ) {
       alert("이미 지원했습니다.");
       return;
     }
-    const updatedPost = {
-      ...selectedPost,
-      applicants: [...(selectedPost.applicants || []), currentUser],
-    };
-    setPosts(posts.map((p) => (p.id === selectedPost.id ? updatedPost : p)));
-    setSelectedPost(updatedPost);
-    alert("호스트에게 프로필이 전송되었습니다!");
+    try {
+      await apiApplyToPost(selectedPost.id);
+
+      const refreshedPost = await apiFetchPostById(selectedPost.id).catch(
+        () => null,
+      );
+
+      const updatedPost = refreshedPost
+        ? {
+            ...refreshedPost,
+            viewer: { ...refreshedPost.viewer, hasApplied: true },
+          }
+        : {
+            ...selectedPost,
+            viewer: { ...selectedPost.viewer, hasApplied: true },
+            applicants: [...(selectedPost.applicants || []), currentUser],
+          };
+      setPosts((prev) =>
+        prev.map((post) => (post.id === selectedPost.id ? updatedPost : post)),
+      );
+      setSelectedPost(updatedPost);
+      alert("참여 신청이 완료되었습니다.");
+    } catch (error) {
+      console.error("Failed to submit application:", error);
+      alert("참여 신청에 실패했습니다. 다시 시도해주세요.");
+    }
   };
 
-  const handleCancelJoin = () => {
+  const handleCancelJoin = async () => {
     if (!selectedPost) return;
     if (window.confirm("정말로 참여를 취소하시겠습니까?")) {
-      const updatedPost = {
-        ...selectedPost,
-        applicants:
-          selectedPost.applicants?.filter(
-            (a) => a.userId !== currentUser.userId,
-          ) || [],
-      };
-      setPosts(posts.map((p) => (p.id === selectedPost.id ? updatedPost : p)));
-      setSelectedPost(updatedPost);
+      try {
+        await apiCancelPostApplication(selectedPost.id);
+
+        const refreshedPost = await apiFetchPostById(selectedPost.id).catch(
+          () => null,
+        );
+
+        const updatedPost = refreshedPost
+          ? {
+              ...refreshedPost,
+              viewer: { ...refreshedPost.viewer, hasApplied: false },
+            }
+          : {
+              ...selectedPost,
+              viewer: { ...selectedPost.viewer, hasApplied: false },
+              applicants:
+                selectedPost.applicants?.filter(
+                  (a) => a.userId !== currentUser.userId,
+                ) || [],
+            };
+        setPosts((prev) =>
+          prev.map((post) =>
+            post.id === selectedPost.id ? updatedPost : post,
+          ),
+        );
+        setSelectedPost(updatedPost);
+      } catch (error) {
+        console.error("Failed to cancel application:", error);
+        alert("李몄뿬 痍⑥냼???ㅽ뙣?덉뒿?덈떎. ?ㅼ떆 ?쒕룄?댁＜?몄슂.");
+      }
     }
   };
 

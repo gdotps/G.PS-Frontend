@@ -66,6 +66,12 @@ export interface Comment {
   timestamp: number;
 }
 
+export interface PostViewer {
+  isAuthor?: boolean;
+  isScrapped?: boolean;
+  hasApplied?: boolean;
+}
+
 export interface Post {
   id: number;
   authorId: number;
@@ -88,6 +94,7 @@ export interface Post {
   createdAt: number;
   comments: Comment[];
   applicants?: User[];
+  viewer?: PostViewer;
 }
 
 export interface Message {

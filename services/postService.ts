@@ -1,5 +1,6 @@
-import { Post } from "../types";
+import { Post, PostViewer, User } from "../types";
 import { getAccessToken } from "./authService";
+import { apiClient } from "./apiClient";
 
 const API_BASE_URL = "http://localhost:8080";
 
@@ -48,8 +49,20 @@ export interface PostResponse {
     text: string;
     timestamp: number;
   }>;
-  isAuthor?: boolean;
-  isScrapped?: boolean;
+  viewer?: {
+    isAuthor?: boolean;
+    isScrapped?: boolean;
+    hasApplied?: boolean;
+  };
+  applicants?: Array<{
+    userId?: number;
+    id?: number;
+    nickname?: string;
+    name?: string;
+    profileUrl?: string;
+    avatarUrl?: string;
+    introduction?: string;
+  }>;
 }
 
 export interface PostCreateResponse {
@@ -60,6 +73,19 @@ interface ApiResponse<T> {
   success: boolean;
   message: string;
   data: T;
+}
+
+interface ApplyToPostResponse {
+  applicationId?: number;
+  postId?: number;
+  status?: string;
+}
+
+interface CancelPostApplicationResponse {
+  applicationId?: number;
+  postId?: number;
+  canceled?: boolean;
+  status?: string;
 }
 
 type HomePostsPayload =
@@ -118,7 +144,22 @@ const mapPostResponseToPost = (post: PostResponse): Post => ({
       text: comment.text,
       timestamp: comment.timestamp,
     })) ?? [],
-  applicants: [],
+  applicants:
+    post.applicants?.map(
+      (applicant): User => ({
+        userId: applicant.userId ?? applicant.id ?? 0,
+        nickname: applicant.nickname ?? applicant.name ?? "",
+        profileUrl: applicant.profileUrl ?? applicant.avatarUrl ?? "",
+        introduction: applicant.introduction,
+      }),
+    ) ?? [],
+  viewer: post.viewer
+    ? ({
+        isAuthor: post.viewer.isAuthor,
+        isScrapped: post.viewer.isScrapped,
+        hasApplied: post.viewer.hasApplied,
+      } satisfies PostViewer)
+    : undefined,
 });
 
 export const fetchHomePosts = async (): Promise<Post[]> => {
@@ -231,4 +272,28 @@ export const fetchAllPosts = async (): Promise<PostResponse[]> => {
   }
   const json = await res.json();
   return json.data;
+};
+
+export const applyToPost = async (
+  postId: number,
+): Promise<ApplyToPostResponse> => {
+  const res = await apiClient<ApiResponse<ApplyToPostResponse>>(
+    `/api/v1/posts/${postId}/applications`,
+    {
+      method: "POST",
+    },
+  );
+  return res.data;
+};
+
+export const cancelPostApplication = async (
+  postId: number,
+): Promise<CancelPostApplicationResponse> => {
+  const res = await apiClient<ApiResponse<CancelPostApplicationResponse>>(
+    `/api/v1/posts/${postId}/applications`,
+    {
+      method: "DELETE",
+    },
+  );
+  return res.data;
 };
