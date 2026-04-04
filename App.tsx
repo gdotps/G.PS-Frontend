@@ -208,6 +208,7 @@ export default function App() {
             onBack={() => setCurrentView(ViewState.PROFILE)}
             onFetchApplicants={fetchApplicantsByPostId}
             onApprove={handleApprove}
+            onReject={handleReject}
           />
         );
       case ViewState.MY_APPLICATIONS:

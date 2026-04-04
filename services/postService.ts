@@ -78,6 +78,16 @@ interface ApplicantInfoResponse {
   appliedAt: string;
 }
 
+interface ApplicantStatusRequest {
+  userId: number;
+  status: ApplicantInfo["status"];
+}
+
+interface ApplicantStatusResponse {
+  userId: number;
+  status: ApplicantInfo["status"];
+}
+
 interface ApiResponse<T> {
   success: boolean;
   message: string;
@@ -322,4 +332,19 @@ export const fetchPostApplicants = async (
     status: applicant.status,
     appliedAt: applicant.appliedAt,
   }));
+};
+
+export const changePostApplicantStatus = async (
+  postId: number,
+  request: ApplicantStatusRequest,
+): Promise<ApplicantStatusResponse> => {
+  const res = await apiClient<ApiResponse<ApplicantStatusResponse>>(
+    `/api/v1/posts/${postId}/applicants`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(request),
+    },
+  );
+
+  return res.data;
 };

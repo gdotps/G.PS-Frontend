@@ -17,6 +17,7 @@ import {
 import {
   applyToPost as apiApplyToPost,
   cancelPostApplication as apiCancelPostApplication,
+  changePostApplicantStatus as apiChangePostApplicantStatus,
   createPost as apiCreatePost,
   fetchPostApplicants as apiFetchPostApplicants,
   fetchHomePosts as apiFetchHomePosts,
@@ -697,49 +698,68 @@ export const useAppLogic = () => {
         setSelectedPost(updatedPost);
       } catch (error) {
         console.error("Failed to cancel application:", error);
-        alert("李몄뿬 痍⑥냼???ㅽ뙣?덉뒿?덈떎. ?ㅼ떆 ?쒕룄?댁＜?몄슂.");
+        alert("해당 지원자를 거절하였습니다.");
       }
     }
   };
 
-  const handleApprove = (postId: number, applicantId: number) => {
+  const handleApprove = async (postId: number, applicantId: number) => {
     const post = posts.find((p) => p.id === postId);
     if (!post) return;
     if (post.currentMembers >= post.maxMembers) {
-      alert("정원이 꽉 찼습니다.");
+      alert("모집 인원이 모두 찼습니다.");
       return;
     }
-    const applicant = post.applicants?.find((u) => u.userId === applicantId);
-    if (!applicant) return;
 
-    const updatedPost = {
-      ...post,
-      currentMembers: post.currentMembers + 1,
-      applicants: post.applicants?.filter((u) => u.userId !== applicantId),
-    };
-    setPosts(posts.map((p) => (p.id === postId ? updatedPost : p)));
-    if (selectedPost && selectedPost.id === postId) {
-      setSelectedPost(updatedPost);
-    }
-    alert(`${applicant.nickname}님의 참여를 승인했습니다!`);
-  };
+    try {
+      await apiChangePostApplicantStatus(postId, {
+        userId: applicantId,
+        status: "APPROVED",
+      });
 
-  const handleReject = (postId: number, applicantId: number) => {
-    const post = posts.find((p) => p.id === postId);
-    if (!post) return;
-    const applicant = post.applicants?.find((u) => u.userId === applicantId);
-    if (!applicant) return;
-
-    if (
-      window.confirm(`${applicant.nickname}님의 참여 신청을 거절하시겠습니까?`)
-    ) {
       const updatedPost = {
         ...post,
+        currentMembers: post.currentMembers + 1,
         applicants: post.applicants?.filter((u) => u.userId !== applicantId),
       };
-      setPosts(posts.map((p) => (p.id === postId ? updatedPost : p)));
+
+      setPosts((prev) => prev.map((p) => (p.id === postId ? updatedPost : p)));
       if (selectedPost && selectedPost.id === postId) {
         setSelectedPost(updatedPost);
+      }
+      alert("지원자가 승인되었습니다.");
+    } catch (error) {
+      console.error("Failed to approve applicant:", error);
+      alert("지원자 승인에 실패했습니다. 다시 시도해주세요.");
+    }
+  };
+
+  const handleReject = async (postId: number, applicantId: number) => {
+    const post = posts.find((p) => p.id === postId);
+    if (!post) return;
+
+    if (window.confirm("지원자를 거절하시겠습니까?")) {
+      try {
+        await apiChangePostApplicantStatus(postId, {
+          userId: applicantId,
+          status: "REJECTED",
+        });
+
+        const updatedPost = {
+          ...post,
+          applicants: post.applicants?.filter((u) => u.userId !== applicantId),
+        };
+
+        setPosts((prev) =>
+          prev.map((p) => (p.id === postId ? updatedPost : p)),
+        );
+        if (selectedPost && selectedPost.id === postId) {
+          setSelectedPost(updatedPost);
+        }
+        alert("지원자를 거절하였습니다.");
+      } catch (error) {
+        console.error("Failed to reject applicant:", error);
+        alert("지원자 거절에 실패하였습니다.");
       }
     }
   };

@@ -17,7 +17,8 @@ interface ApplicantListViewProps {
   currentUser: User;
   onBack: () => void;
   onFetchApplicants: (postId: number) => Promise<ApplicantInfo[]>;
-  onApprove: (postId: number, applicantId: number) => void;
+  onApprove: (postId: number, applicantId: number) => Promise<void>;
+  onReject: (postId: number, applicantId: number) => Promise<void>;
 }
 
 const STATUS_CONFIG: Record<
@@ -44,6 +45,7 @@ export const ApplicantListView: React.FC<ApplicantListViewProps> = ({
   onBack,
   onFetchApplicants,
   onApprove,
+  onReject,
 }) => {
   const myHostedPosts = useMemo(
     () => posts.filter((post) => post.authorId === currentUser.userId),
@@ -126,6 +128,29 @@ export const ApplicantListView: React.FC<ApplicantListViewProps> = ({
     } finally {
       setLoadingPostId((current) => (current === postId ? null : current));
     }
+  };
+
+  const updateApplicantStatusLocally = (
+    postId: number,
+    applicantId: number,
+    status: ApplicantStatus,
+  ) => {
+    setApplicantsByPostId((prev) => ({
+      ...prev,
+      [postId]: (prev[postId] ?? []).map((applicant) =>
+        applicant.userId === applicantId ? { ...applicant, status } : applicant,
+      ),
+    }));
+  };
+
+  const handleApproveClick = async (postId: number, applicantId: number) => {
+    await onApprove(postId, applicantId);
+    updateApplicantStatusLocally(postId, applicantId, "APPROVED");
+  };
+
+  const handleRejectClick = async (postId: number, applicantId: number) => {
+    await onReject(postId, applicantId);
+    updateApplicantStatusLocally(postId, applicantId, "REJECTED");
   };
 
   return (
@@ -270,10 +295,24 @@ export const ApplicantListView: React.FC<ApplicantListViewProps> = ({
                               </div>
 
                               {applicant.status === "PENDING" && (
-                                <div className="mt-4 flex justify-end">
+                                <div className="mt-4 flex justify-end gap-2">
                                   <button
                                     onClick={() =>
-                                      onApprove(post.id, applicant.userId)
+                                      void handleRejectClick(
+                                        post.id,
+                                        applicant.userId,
+                                      )
+                                    }
+                                    className="px-3 py-1.5 bg-gray-100 text-gray-600 text-xs font-bold rounded-lg hover:bg-gray-200 transition-colors"
+                                  >
+                                    거절
+                                  </button>
+                                  <button
+                                    onClick={() =>
+                                      void handleApproveClick(
+                                        post.id,
+                                        applicant.userId,
+                                      )
                                     }
                                     className="px-3 py-1.5 bg-gray-900 text-white text-xs font-bold rounded-lg hover:bg-gray-700 transition-colors shadow-sm"
                                   >
