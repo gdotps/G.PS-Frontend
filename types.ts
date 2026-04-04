@@ -18,6 +18,8 @@ export enum ViewState {
 
 export type ApplicationStatus = "PENDING" | "APPROVED" | "REJECTED";
 
+export type ApplicantStatus = "PENDING" | "APPROVED" | "REJECTED";
+
 export interface ApplicationItem {
   applicationId: number;
   postId: number;
@@ -38,6 +40,15 @@ export interface MyApplicationsData {
   content: ApplicationItem[];
   pageable: PageableInfo;
   last: boolean;
+}
+
+export interface ApplicantInfo {
+  userId: number;
+  nickname: string;
+  profileUrl: string | null;
+  introduction: string;
+  status: ApplicantStatus;
+  appliedAt: string;
 }
 
 export interface User {

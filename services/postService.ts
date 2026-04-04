@@ -1,4 +1,4 @@
-import { Post, PostViewer, User } from "../types";
+import { ApplicantInfo, Post, PostViewer, User } from "../types";
 import { getAccessToken } from "./authService";
 import { apiClient } from "./apiClient";
 
@@ -67,6 +67,15 @@ export interface PostResponse {
 
 export interface PostCreateResponse {
   postId: number;
+}
+
+interface ApplicantInfoResponse {
+  userId: number;
+  nickname: string;
+  profileUrl: string | null;
+  introduction?: string | null;
+  status: ApplicantInfo["status"];
+  appliedAt: string;
 }
 
 interface ApiResponse<T> {
@@ -296,4 +305,21 @@ export const cancelPostApplication = async (
     },
   );
   return res.data;
+};
+
+export const fetchPostApplicants = async (
+  postId: number,
+): Promise<ApplicantInfo[]> => {
+  const res = await apiClient<ApiResponse<ApplicantInfoResponse[]>>(
+    `/api/v1/posts/${postId}/applications`,
+  );
+
+  return res.data.map((applicant) => ({
+    userId: applicant.userId,
+    nickname: applicant.nickname,
+    profileUrl: applicant.profileUrl,
+    introduction: applicant.introduction ?? "",
+    status: applicant.status,
+    appliedAt: applicant.appliedAt,
+  }));
 };

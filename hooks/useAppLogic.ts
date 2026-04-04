@@ -18,6 +18,7 @@ import {
   applyToPost as apiApplyToPost,
   cancelPostApplication as apiCancelPostApplication,
   createPost as apiCreatePost,
+  fetchPostApplicants as apiFetchPostApplicants,
   fetchHomePosts as apiFetchHomePosts,
   fetchPostById as apiFetchPostById,
   updatePost as apiUpdatePost,
@@ -591,6 +592,10 @@ export const useAppLogic = () => {
     myApplicationsPage,
     fetchMyApplications,
   ]);
+
+  const fetchApplicantsByPostId = useCallback(async (postId: number) => {
+    return apiFetchPostApplicants(postId);
+  }, []);
 
   // 액션
   const toggleLike = async (postId: number) => {
@@ -1237,6 +1242,7 @@ export const useAppLogic = () => {
     isApplicationsLoading,
     goToMyApplications,
     loadMoreApplications,
+    fetchApplicantsByPostId,
     // 찜한 모임
     likedMeetings,
     likedMeetingsTotalElements,
