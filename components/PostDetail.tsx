@@ -2,14 +2,16 @@ import React, { useState } from "react";
 import { Post, User } from "../types";
 import { Header } from "./Header";
 import {
-  ChevronLeft,
   Bookmark,
+  ChevronLeft,
   Clock,
-  MapPin,
-  UserCheck,
-  Send,
+  CornerDownRight,
   Edit,
+  MapPin,
+  Send,
   Trash2,
+  UserCheck,
+  X,
 } from "lucide-react";
 
 export const PostDetail: React.FC<{
@@ -22,7 +24,8 @@ export const PostDetail: React.FC<{
   onCancelJoin: () => void;
   onApprove: (postId: number, applicantId: number) => void;
   onReject: (postId: number, applicantId: number) => void;
-  onAddComment: (text: string) => void;
+  onAddComment: (text: string, parentId?: number | null) => void;
+  onDeleteComment: (commentId: number) => void;
   onEdit: () => void;
   onDelete: (postId: number) => void;
 }> = ({
@@ -36,23 +39,44 @@ export const PostDetail: React.FC<{
   onApprove,
   onReject,
   onAddComment,
+  onDeleteComment,
   onEdit,
   onDelete,
 }) => {
   const [commentText, setCommentText] = useState("");
+  const [replyTarget, setReplyTarget] = useState<{
+    id: number;
+    authorName: string;
+  } | null>(null);
+
   const tags = post.tags ?? [];
   const applicants = post.applicants ?? [];
   const comments = post.comments ?? [];
+  const totalCommentCount = comments.reduce(
+    (count, comment) => count + 1 + (comment.replies?.length ?? 0),
+    0,
+  );
+
+  const isCurrentUserCommentAuthor = (authorId: number, authorName: string) => {
+    return (
+      authorId === currentUser.userId ||
+      (!authorId && authorName === currentUser.nickname)
+    );
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!commentText.trim()) return;
-    onAddComment(commentText);
+
+    onAddComment(commentText, replyTarget?.id ?? null);
     setCommentText("");
+    setReplyTarget(null);
   };
 
   const isHost = post.authorId === currentUser.userId;
-  const hasApplied = applicants.some((a) => a.userId === currentUser.userId);
+  const hasApplied =
+    post.viewer?.hasApplied ??
+    applicants.some((applicant) => applicant.userId === currentUser.userId);
 
   return (
     <div className="bg-white min-h-screen pb-32">
@@ -177,7 +201,7 @@ export const PostDetail: React.FC<{
           <div className="mb-8 border-t border-gray-100 pt-6">
             <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
               <UserCheck size={18} className="text-gray-600" />
-              참여 신청 ({applicants.length}명)
+              참여 요청 ({applicants.length}명)
             </h3>
             <div className="space-y-3">
               {applicants.map((applicant) => (
@@ -217,8 +241,9 @@ export const PostDetail: React.FC<{
 
         <div className="border-t border-gray-100 pt-6 mt-6">
           <h3 className="font-bold text-gray-900 mb-4 px-1">
-            댓글 ({comments.length})
+            댓글 ({totalCommentCount})
           </h3>
+
           <div className="space-y-6 mb-6">
             {comments.length === 0 ? (
               <p className="text-gray-400 text-sm text-center py-4">
@@ -226,31 +251,108 @@ export const PostDetail: React.FC<{
               </p>
             ) : (
               comments.map((comment) => (
-                <div key={comment.id} className="flex gap-3">
-                  <img
-                    src={
-                      comment.authorAvatar ||
-                      `https://ui-avatars.com/api/?name=${comment.authorName}`
-                    }
-                    className="w-8 h-8 rounded-full bg-gray-200 object-cover border border-gray-50"
-                    alt="avatar"
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <p className="text-xs font-bold text-gray-900">
-                        {comment.authorName}
+                <div key={comment.id} className="space-y-3">
+                  <div className="flex gap-3">
+                    <img
+                      src={
+                        comment.authorAvatar ||
+                        `https://ui-avatars.com/api/?name=${comment.authorName}`
+                      }
+                      className="w-8 h-8 rounded-full bg-gray-200 object-cover border border-gray-50"
+                      alt="avatar"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between gap-3 mb-1">
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs font-bold text-gray-900">
+                            {comment.authorName}
+                          </p>
+                          <span className="text-[10px] text-gray-400">
+                            {new Date(comment.timestamp).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        </div>
+                        {isCurrentUserCommentAuthor(
+                          comment.authorId,
+                          comment.authorName,
+                        ) && (
+                          <button
+                            type="button"
+                            onClick={() => onDeleteComment(comment.id)}
+                            className="text-gray-400 hover:text-red-500 transition-colors"
+                            aria-label="댓글 삭제"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-r-xl rounded-bl-xl inline-block">
+                        {comment.text}
                       </p>
-                      <span className="text-[10px] text-gray-400">
-                        {new Date(comment.timestamp).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
+                      {comment.text !== "삭제된 댓글입니다." && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setReplyTarget({
+                              id: comment.id,
+                              authorName: comment.authorName,
+                            })
+                          }
+                          className="mt-2 block text-xs font-semibold text-gray-500 hover:text-gray-900 transition-colors"
+                        >
+                          답글 달기
+                        </button>
+                      )}
                     </div>
-                    <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-r-xl rounded-bl-xl inline-block">
-                      {comment.text}
-                    </p>
                   </div>
+
+                  {(comment.replies?.length ?? 0) > 0 && (
+                    <div className="ml-11 space-y-3 border-l border-gray-100 pl-4">
+                      {comment.replies?.map((reply) => (
+                        <div key={reply.id} className="flex gap-3">
+                          <div className="pt-1 text-gray-300">
+                            <CornerDownRight size={14} />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between gap-3 mb-1">
+                              <div className="flex items-center gap-2">
+                                <p className="text-xs font-bold text-gray-900">
+                                  {reply.authorName}
+                                </p>
+                                <span className="text-[10px] text-gray-400">
+                                  {new Date(reply.timestamp).toLocaleTimeString(
+                                    [],
+                                    {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    },
+                                  )}
+                                </span>
+                              </div>
+                              {isCurrentUserCommentAuthor(
+                                reply.authorId,
+                                reply.authorName,
+                              ) && (
+                                <button
+                                  type="button"
+                                  onClick={() => onDeleteComment(reply.id)}
+                                  className="text-gray-400 hover:text-red-500 transition-colors"
+                                  aria-label="답글 삭제"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-r-xl rounded-bl-xl inline-block">
+                              {reply.text}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))
             )}
@@ -264,21 +366,41 @@ export const PostDetail: React.FC<{
                 className="w-full h-full object-cover"
               />
             </div>
-            <div className="flex-1 relative">
-              <input
-                type="text"
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                placeholder="궁금한 점을 물어보세요.."
-                className="w-full bg-gray-50 border border-gray-200 rounded-full pl-4 pr-10 py-2.5 text-sm focus:outline-none focus:border-gray-900 focus:bg-white transition-all"
-              />
-              <button
-                type="submit"
-                disabled={!commentText.trim()}
-                className="absolute right-1 top-1 p-1.5 bg-gray-900 text-white rounded-full disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors"
-              >
-                <Send size={14} className="ml-0.5" />
-              </button>
+            <div className="flex-1">
+              {replyTarget && (
+                <div className="mb-2 flex items-center justify-between rounded-2xl bg-gray-100 px-3 py-2 text-xs text-gray-600">
+                  <span>{replyTarget.authorName}님에게 답글 남기는 중</span>
+                  <button
+                    type="button"
+                    onClick={() => setReplyTarget(null)}
+                    className="text-gray-500 hover:text-gray-900"
+                    aria-label="답글 취소"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+
+              <div className="relative">
+                <input
+                  type="text"
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  placeholder={
+                    replyTarget
+                      ? `${replyTarget.authorName}님에게 답글을 남겨보세요.`
+                      : "궁금한 점을 자유롭게 남겨보세요."
+                  }
+                  className="w-full bg-gray-50 border border-gray-200 rounded-full pl-4 pr-10 py-2.5 text-sm focus:outline-none focus:border-gray-900 focus:bg-white transition-all"
+                />
+                <button
+                  type="submit"
+                  disabled={!commentText.trim()}
+                  className="absolute right-1 top-1 p-1.5 bg-gray-900 text-white rounded-full disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors"
+                >
+                  <Send size={14} className="ml-0.5" />
+                </button>
+              </div>
             </div>
           </form>
         </div>
@@ -288,19 +410,18 @@ export const PostDetail: React.FC<{
         <button
           onClick={hasApplied ? onCancelJoin : onJoin}
           disabled={isHost}
-          className={`w-full font-bold py-4 rounded-xl shadow-lg transition-colors flex items-center justify-center gap-2
-                ${
-                  isHost
-                    ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-                    : hasApplied
-                      ? "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                      : "bg-gray-900 text-white hover:bg-gray-800 shadow-gray-200"
-                }`}
+          className={`w-full font-bold py-4 rounded-xl shadow-lg transition-colors flex items-center justify-center gap-2 ${
+            isHost
+              ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+              : hasApplied
+                ? "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                : "bg-gray-900 text-white hover:bg-gray-800 shadow-gray-200"
+          }`}
         >
           {isHost
-            ? "내가 만든 모임입니다."
+            ? "내가 만든 모임입니다"
             : hasApplied
-              ? "참여 취소하기"
+              ? "참여 취소"
               : "참여하기 (프로필 전송)"}
         </button>
       </div>

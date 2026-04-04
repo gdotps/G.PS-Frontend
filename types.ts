@@ -18,6 +18,8 @@ export enum ViewState {
 
 export type ApplicationStatus = "PENDING" | "APPROVED" | "REJECTED";
 
+export type ApplicantStatus = "PENDING" | "APPROVED" | "REJECTED";
+
 export interface ApplicationItem {
   applicationId: number;
   postId: number;
@@ -38,6 +40,26 @@ export interface MyApplicationsData {
   content: ApplicationItem[];
   pageable: PageableInfo;
   last: boolean;
+}
+
+export interface ApplicantInfo {
+  userId: number;
+  nickname: string;
+  profileUrl: string | null;
+  introduction: string;
+  status: ApplicantStatus;
+  appliedAt: string;
+}
+
+export interface ApplicantPostSummary {
+  postId: number;
+  title: string;
+  category: string;
+  locationName: string;
+  meetingTime: string;
+  maxMembers: number;
+  currentMembers: number;
+  applicantCount: number;
 }
 
 export interface User {
@@ -64,6 +86,13 @@ export interface Comment {
   authorAvatar?: string;
   text: string;
   timestamp: number;
+  replies?: Comment[];
+}
+
+export interface PostViewer {
+  isAuthor?: boolean;
+  isScrapped?: boolean;
+  hasApplied?: boolean;
 }
 
 export interface Post {
@@ -88,6 +117,7 @@ export interface Post {
   createdAt: number;
   comments: Comment[];
   applicants?: User[];
+  viewer?: PostViewer;
 }
 
 export interface Message {

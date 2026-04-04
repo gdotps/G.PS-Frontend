@@ -1,5 +1,13 @@
-import { Post } from "../types";
+import {
+  ApplicantInfo,
+  ApplicantPostSummary,
+  Comment,
+  Post,
+  PostViewer,
+  User,
+} from "../types";
 import { getAccessToken } from "./authService";
+import { apiClient } from "./apiClient";
 
 const API_BASE_URL = "http://localhost:8080";
 
@@ -41,25 +49,108 @@ export interface PostResponse {
     avatarUrl?: string;
   };
   comments?: Array<{
-    id: number;
-    authorId: number;
-    authorName: string;
+    commentId?: number;
+    id?: number;
+    author?: string;
+    authorName?: string;
+    authorId?: number;
     authorAvatar?: string;
-    text: string;
-    timestamp: number;
+    content?: string;
+    text?: string;
+    createdAt?: string;
+    timestamp?: number;
+    children?: Array<{
+      commentId?: number;
+      id?: number;
+      author?: string;
+      authorName?: string;
+      authorId?: number;
+      authorAvatar?: string;
+      content?: string;
+      text?: string;
+      createdAt?: string;
+      timestamp?: number;
+    }>;
   }>;
-  isAuthor?: boolean;
-  isScrapped?: boolean;
+  viewer?: {
+    isAuthor?: boolean;
+    isScrapped?: boolean;
+    hasApplied?: boolean;
+  };
+  applicants?: Array<{
+    userId?: number;
+    id?: number;
+    nickname?: string;
+    name?: string;
+    profileUrl?: string;
+    avatarUrl?: string;
+    introduction?: string;
+  }>;
 }
 
 export interface PostCreateResponse {
   postId: number;
 }
 
+interface ApplicantInfoResponse {
+  userId: number;
+  nickname: string;
+  profileUrl: string | null;
+  introduction?: string | null;
+  status: ApplicantInfo["status"];
+  appliedAt: string;
+}
+
+interface ApplicantPostSummaryResponse {
+  postId: number;
+  title: string;
+  category: string;
+  locationName: string;
+  meetingTime: string;
+  maxMembers: number;
+  currentMembers: number;
+  applicantCount: number;
+}
+
+interface ApplicantStatusRequest {
+  userId: number;
+  status: ApplicantInfo["status"];
+}
+
+interface ApplicantStatusResponse {
+  userId: number;
+  status: ApplicantInfo["status"];
+}
+
+interface CreateCommentRequest {
+  content: string;
+  parentId?: number | null;
+}
+
+interface CreateCommentResponse {
+  commentId: number;
+  content: string;
+  authorNickname: string;
+  createdAt: string;
+}
+
 interface ApiResponse<T> {
   success: boolean;
   message: string;
   data: T;
+}
+
+interface ApplyToPostResponse {
+  applicationId?: number;
+  postId?: number;
+  status?: string;
+}
+
+interface CancelPostApplicationResponse {
+  applicationId?: number;
+  postId?: number;
+  canceled?: boolean;
+  status?: string;
 }
 
 type HomePostsPayload =
@@ -79,6 +170,32 @@ const normalizeHomePostsPayload = (
   if (Array.isArray(payload.items)) return payload.items;
   return [];
 };
+
+const parseCommentTimestamp = (value?: string | number | null): number => {
+  if (typeof value === "number") return value;
+  if (!value) return Date.now();
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? Date.now() : parsed;
+};
+
+const mapNestedComment = (
+  comment:
+    | NonNullable<PostResponse["comments"]>[number]
+    | NonNullable<
+        NonNullable<PostResponse["comments"]>[number]["children"]
+      >[number],
+): Comment => ({
+  id: comment.commentId ?? comment.id ?? 0,
+  authorId: comment.authorId ?? 0,
+  authorName: comment.authorName ?? comment.author ?? "",
+  authorAvatar: comment.authorAvatar,
+  text: comment.content ?? comment.text ?? "",
+  timestamp: parseCommentTimestamp(comment.createdAt ?? comment.timestamp),
+  replies:
+    "children" in comment && Array.isArray(comment.children)
+      ? comment.children.map((child) => mapNestedComment(child))
+      : [],
+});
 
 const mapPostResponseToPost = (post: PostResponse): Post => ({
   id: post.postId,
@@ -110,15 +227,23 @@ const mapPostResponseToPost = (post: PostResponse): Post => ({
         ? Date.parse(post.createdAt) || Date.now()
         : Date.now(),
   comments:
-    post.comments?.map((comment) => ({
-      id: comment.id,
-      authorId: comment.authorId,
-      authorName: comment.authorName,
-      authorAvatar: comment.authorAvatar,
-      text: comment.text,
-      timestamp: comment.timestamp,
-    })) ?? [],
-  applicants: [],
+    post.comments?.map((comment) => mapNestedComment(comment)) ?? [],
+  applicants:
+    post.applicants?.map(
+      (applicant): User => ({
+        userId: applicant.userId ?? applicant.id ?? 0,
+        nickname: applicant.nickname ?? applicant.name ?? "",
+        profileUrl: applicant.profileUrl ?? applicant.avatarUrl ?? "",
+        introduction: applicant.introduction,
+      }),
+    ) ?? [],
+  viewer: post.viewer
+    ? ({
+        isAuthor: post.viewer.isAuthor,
+        isScrapped: post.viewer.isScrapped,
+        hasApplied: post.viewer.hasApplied,
+      } satisfies PostViewer)
+    : undefined,
 });
 
 export const fetchHomePosts = async (): Promise<Post[]> => {
@@ -231,4 +356,98 @@ export const fetchAllPosts = async (): Promise<PostResponse[]> => {
   }
   const json = await res.json();
   return json.data;
+};
+
+export const applyToPost = async (
+  postId: number,
+): Promise<ApplyToPostResponse> => {
+  const res = await apiClient<ApiResponse<ApplyToPostResponse>>(
+    `/api/v1/posts/${postId}/applications`,
+    {
+      method: "POST",
+    },
+  );
+  return res.data;
+};
+
+export const cancelPostApplication = async (
+  postId: number,
+): Promise<CancelPostApplicationResponse> => {
+  const res = await apiClient<ApiResponse<CancelPostApplicationResponse>>(
+    `/api/v1/posts/${postId}/applications`,
+    {
+      method: "DELETE",
+    },
+  );
+  return res.data;
+};
+
+export const fetchPostApplicants = async (
+  postId: number,
+): Promise<ApplicantInfo[]> => {
+  const res = await apiClient<ApiResponse<ApplicantInfoResponse[]>>(
+    `/api/v1/posts/${postId}/applications`,
+  );
+
+  return res.data.map((applicant) => ({
+    userId: applicant.userId,
+    nickname: applicant.nickname,
+    profileUrl: applicant.profileUrl,
+    introduction: applicant.introduction ?? "",
+    status: applicant.status,
+    appliedAt: applicant.appliedAt,
+  }));
+};
+
+export const fetchMyApplicantPosts = async (): Promise<ApplicantPostSummary[]> => {
+  const res = await apiClient<ApiResponse<ApplicantPostSummaryResponse[]>>(
+    "/api/v1/posts/applications/my",
+  );
+
+  return res.data.map((post) => ({
+    postId: post.postId,
+    title: post.title,
+    category: post.category,
+    locationName: post.locationName,
+    meetingTime: post.meetingTime,
+    maxMembers: post.maxMembers,
+    currentMembers: post.currentMembers,
+    applicantCount: post.applicantCount,
+  }));
+};
+
+export const changePostApplicantStatus = async (
+  postId: number,
+  request: ApplicantStatusRequest,
+): Promise<ApplicantStatusResponse> => {
+  const res = await apiClient<ApiResponse<ApplicantStatusResponse>>(
+    `/api/v1/posts/${postId}/applicants`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(request),
+    },
+  );
+
+  return res.data;
+};
+
+export const createComment = async (
+  postId: number,
+  request: CreateCommentRequest,
+): Promise<CreateCommentResponse> => {
+  const res = await apiClient<ApiResponse<CreateCommentResponse>>(
+    `/api/v1/posts/${postId}/comments`,
+    {
+      method: "POST",
+      body: JSON.stringify(request),
+    },
+  );
+
+  return res.data;
+};
+
+export const deleteComment = async (commentId: number): Promise<void> => {
+  await apiClient<ApiResponse<void>>(`/api/v1/comments/${commentId}`, {
+    method: "DELETE",
+  });
 };
