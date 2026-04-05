@@ -43,6 +43,7 @@ export default function App() {
     handleApprove,
     handleReject,
     handleAddComment,
+    handleDeleteComment,
     handleSendMessage,
     handleDeleteMessage,
     handleLeaveChat,
@@ -71,6 +72,8 @@ export default function App() {
     isApplicationsLoading,
     goToMyApplications,
     loadMoreApplications,
+    fetchApplicantPostSummaries,
+    fetchApplicantsByPostId,
     likedMeetings,
     likedMeetingsTotalElements,
     likedMeetingsIsLast,
@@ -131,6 +134,7 @@ export default function App() {
             onApprove={handleApprove}
             onReject={handleReject}
             onAddComment={handleAddComment}
+            onDeleteComment={handleDeleteComment}
             onEdit={() => goToEditPost(selectedPost)}
             onDelete={handleDeletePost}
           />
@@ -202,9 +206,11 @@ export default function App() {
       case ViewState.APPLICANTS:
         return (
           <ApplicantListView
-            posts={posts}
             onBack={() => setCurrentView(ViewState.PROFILE)}
+            onFetchApplicantPosts={fetchApplicantPostSummaries}
+            onFetchApplicants={fetchApplicantsByPostId}
             onApprove={handleApprove}
+            onReject={handleReject}
           />
         );
       case ViewState.MY_APPLICATIONS:

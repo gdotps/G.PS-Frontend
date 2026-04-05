@@ -15,7 +15,14 @@ import {
   withdrawUser,
 } from "../services/userService";
 import {
+  applyToPost as apiApplyToPost,
+  cancelPostApplication as apiCancelPostApplication,
+  changePostApplicantStatus as apiChangePostApplicantStatus,
+  createComment as apiCreateComment,
+  deleteComment as apiDeleteComment,
   createPost as apiCreatePost,
+  fetchMyApplicantPosts as apiFetchMyApplicantPosts,
+  fetchPostApplicants as apiFetchPostApplicants,
   fetchHomePosts as apiFetchHomePosts,
   fetchPostById as apiFetchPostById,
   updatePost as apiUpdatePost,
@@ -590,6 +597,14 @@ export const useAppLogic = () => {
     fetchMyApplications,
   ]);
 
+  const fetchApplicantsByPostId = useCallback(async (postId: number) => {
+    return apiFetchPostApplicants(postId);
+  }, []);
+
+  const fetchApplicantPostSummaries = useCallback(async () => {
+    return apiFetchMyApplicantPosts();
+  }, []);
+
   // 액션
   const toggleLike = async (postId: number) => {
     if (isLikeLoading) return;
@@ -622,94 +637,227 @@ export const useAppLogic = () => {
     }
   };
 
-  const handleJoin = () => {
+  const handleJoin = async () => {
     if (!selectedPost) return;
-    if (selectedPost.applicants?.some((a) => a.userId === currentUser.userId)) {
+    if (
+      selectedPost.viewer?.hasApplied ||
+      selectedPost.applicants?.some((a) => a.userId === currentUser.userId)
+    ) {
       alert("이미 지원했습니다.");
       return;
     }
-    const updatedPost = {
-      ...selectedPost,
-      applicants: [...(selectedPost.applicants || []), currentUser],
-    };
-    setPosts(posts.map((p) => (p.id === selectedPost.id ? updatedPost : p)));
-    setSelectedPost(updatedPost);
-    alert("호스트에게 프로필이 전송되었습니다!");
+    try {
+      await apiApplyToPost(selectedPost.id);
+
+      const refreshedPost = await apiFetchPostById(selectedPost.id).catch(
+        () => null,
+      );
+
+      const updatedPost = refreshedPost
+        ? {
+            ...refreshedPost,
+            viewer: { ...refreshedPost.viewer, hasApplied: true },
+          }
+        : {
+            ...selectedPost,
+            viewer: { ...selectedPost.viewer, hasApplied: true },
+            applicants: [...(selectedPost.applicants || []), currentUser],
+          };
+      setPosts((prev) =>
+        prev.map((post) => (post.id === selectedPost.id ? updatedPost : post)),
+      );
+      setSelectedPost(updatedPost);
+      alert("참여 신청이 완료되었습니다.");
+    } catch (error) {
+      console.error("Failed to submit application:", error);
+      alert("참여 신청에 실패했습니다. 다시 시도해주세요.");
+    }
   };
 
-  const handleCancelJoin = () => {
+  const handleCancelJoin = async () => {
     if (!selectedPost) return;
     if (window.confirm("정말로 참여를 취소하시겠습니까?")) {
-      const updatedPost = {
-        ...selectedPost,
-        applicants:
-          selectedPost.applicants?.filter(
-            (a) => a.userId !== currentUser.userId,
-          ) || [],
-      };
-      setPosts(posts.map((p) => (p.id === selectedPost.id ? updatedPost : p)));
-      setSelectedPost(updatedPost);
-    }
-  };
+      try {
+        await apiCancelPostApplication(selectedPost.id);
 
-  const handleApprove = (postId: number, applicantId: number) => {
-    const post = posts.find((p) => p.id === postId);
-    if (!post) return;
-    if (post.currentMembers >= post.maxMembers) {
-      alert("정원이 꽉 찼습니다.");
-      return;
-    }
-    const applicant = post.applicants?.find((u) => u.userId === applicantId);
-    if (!applicant) return;
+        const refreshedPost = await apiFetchPostById(selectedPost.id).catch(
+          () => null,
+        );
 
-    const updatedPost = {
-      ...post,
-      currentMembers: post.currentMembers + 1,
-      applicants: post.applicants?.filter((u) => u.userId !== applicantId),
-    };
-    setPosts(posts.map((p) => (p.id === postId ? updatedPost : p)));
-    if (selectedPost && selectedPost.id === postId) {
-      setSelectedPost(updatedPost);
-    }
-    alert(`${applicant.nickname}님의 참여를 승인했습니다!`);
-  };
-
-  const handleReject = (postId: number, applicantId: number) => {
-    const post = posts.find((p) => p.id === postId);
-    if (!post) return;
-    const applicant = post.applicants?.find((u) => u.userId === applicantId);
-    if (!applicant) return;
-
-    if (
-      window.confirm(`${applicant.nickname}님의 참여 신청을 거절하시겠습니까?`)
-    ) {
-      const updatedPost = {
-        ...post,
-        applicants: post.applicants?.filter((u) => u.userId !== applicantId),
-      };
-      setPosts(posts.map((p) => (p.id === postId ? updatedPost : p)));
-      if (selectedPost && selectedPost.id === postId) {
+        const updatedPost = refreshedPost
+          ? {
+              ...refreshedPost,
+              viewer: { ...refreshedPost.viewer, hasApplied: false },
+            }
+          : {
+              ...selectedPost,
+              viewer: { ...selectedPost.viewer, hasApplied: false },
+              applicants:
+                selectedPost.applicants?.filter(
+                  (a) => a.userId !== currentUser.userId,
+                ) || [],
+            };
+        setPosts((prev) =>
+          prev.map((post) =>
+            post.id === selectedPost.id ? updatedPost : post,
+          ),
+        );
         setSelectedPost(updatedPost);
+      } catch (error) {
+        console.error("Failed to cancel application:", error);
+        alert("해당 지원자를 거절하였습니다.");
       }
     }
   };
 
-  const handleAddComment = (text: string) => {
+  const handleApprove = async (postId: number, applicantId: number) => {
+    const post = posts.find((p) => p.id === postId);
+    if (!post) return;
+    if (post.currentMembers >= post.maxMembers) {
+      alert("모집 인원이 모두 찼습니다.");
+      return;
+    }
+
+    try {
+      await apiChangePostApplicantStatus(postId, {
+        userId: applicantId,
+        status: "APPROVED",
+      });
+
+      const updatedPost = {
+        ...post,
+        currentMembers: post.currentMembers + 1,
+        applicants: post.applicants?.filter((u) => u.userId !== applicantId),
+      };
+
+      setPosts((prev) => prev.map((p) => (p.id === postId ? updatedPost : p)));
+      if (selectedPost && selectedPost.id === postId) {
+        setSelectedPost(updatedPost);
+      }
+      alert("지원자가 승인되었습니다.");
+    } catch (error) {
+      console.error("Failed to approve applicant:", error);
+      alert("지원자 승인에 실패했습니다. 다시 시도해주세요.");
+    }
+  };
+
+  const handleReject = async (postId: number, applicantId: number) => {
+    const post = posts.find((p) => p.id === postId);
+    if (!post) return;
+
+    if (window.confirm("지원자를 거절하시겠습니까?")) {
+      try {
+        await apiChangePostApplicantStatus(postId, {
+          userId: applicantId,
+          status: "REJECTED",
+        });
+
+        const updatedPost = {
+          ...post,
+          applicants: post.applicants?.filter((u) => u.userId !== applicantId),
+        };
+
+        setPosts((prev) =>
+          prev.map((p) => (p.id === postId ? updatedPost : p)),
+        );
+        if (selectedPost && selectedPost.id === postId) {
+          setSelectedPost(updatedPost);
+        }
+        alert("지원자를 거절하였습니다.");
+      } catch (error) {
+        console.error("Failed to reject applicant:", error);
+        alert("지원자 거절에 실패하였습니다.");
+      }
+    }
+  };
+
+  const handleAddComment = async (text: string, parentId?: number | null) => {
     if (!selectedPost) return;
-    const newComment: Comment = {
-      id: Date.now(), // comment Id 나중에 다시 number로 매치해야함
-      authorId: currentUser.userId,
-      authorName: currentUser.nickname,
-      authorAvatar: currentUser.profileUrl,
-      text: text,
-      timestamp: Date.now(),
-    };
-    const updatedPost = {
-      ...selectedPost,
-      comments: [...(selectedPost.comments || []), newComment],
-    };
-    setPosts(posts.map((p) => (p.id === selectedPost.id ? updatedPost : p)));
-    setSelectedPost(updatedPost);
+
+    try {
+      const createdComment = await apiCreateComment(selectedPost.id, {
+        content: text,
+        parentId: parentId ?? null,
+      });
+
+      const newComment: Comment = {
+        id: createdComment.commentId,
+        authorId: currentUser.userId,
+        authorName: createdComment.authorNickname || currentUser.nickname,
+        authorAvatar: currentUser.profileUrl,
+        text: createdComment.content,
+        timestamp: new Date(createdComment.createdAt).getTime(),
+        replies: [],
+      };
+
+      const nextComments = parentId
+        ? (selectedPost.comments || []).map((comment) =>
+            comment.id === parentId
+              ? {
+                  ...comment,
+                  replies: [...(comment.replies || []), newComment],
+                }
+              : comment,
+          )
+        : [...(selectedPost.comments || []), newComment];
+
+      const updatedPost = {
+        ...selectedPost,
+        comments: nextComments,
+      };
+      setPosts((prev) =>
+        prev.map((p) => (p.id === selectedPost.id ? updatedPost : p)),
+      );
+      setSelectedPost(updatedPost);
+    } catch (error) {
+      console.error("Failed to create comment:", error);
+      alert("?? ??? ??????. ?? ??????.");
+    }
+  };
+
+  const handleDeleteComment = async (commentId: number) => {
+    if (!selectedPost) return;
+    if (!window.confirm("댓글을 삭제하시겠어요?")) return;
+
+    try {
+      await apiDeleteComment(commentId);
+
+      const nextComments = (selectedPost.comments || []).map((comment) => {
+        if (comment.id === commentId) {
+          return {
+            ...comment,
+            text: "삭제된 댓글입니다.",
+            replies: comment.replies || [],
+          };
+        }
+
+        if ((comment.replies?.length ?? 0) > 0) {
+          return {
+            ...comment,
+            replies: (comment.replies || []).map((reply) =>
+              reply.id === commentId
+                ? { ...reply, text: "삭제된 댓글입니다." }
+                : reply,
+            ),
+          };
+        }
+
+        return comment;
+      });
+
+      const updatedPost = {
+        ...selectedPost,
+        comments: nextComments,
+      };
+
+      setPosts((prev) =>
+        prev.map((p) => (p.id === selectedPost.id ? updatedPost : p)),
+      );
+      setSelectedPost(updatedPost);
+    } catch (error) {
+      console.error("Failed to delete comment:", error);
+      alert("댓글 삭제에 실패했습니다. 다시 시도해주세요.");
+    }
   };
 
   const handleSendMessage = async (text: string) => {
@@ -1163,6 +1311,7 @@ export const useAppLogic = () => {
     handleApprove,
     handleReject,
     handleAddComment,
+    handleDeleteComment,
     handleSendMessage,
     handleDeleteMessage,
     handleLeaveChat,
@@ -1192,6 +1341,8 @@ export const useAppLogic = () => {
     isApplicationsLoading,
     goToMyApplications,
     loadMoreApplications,
+    fetchApplicantsByPostId,
+    fetchApplicantPostSummaries,
     // 찜한 모임
     likedMeetings,
     likedMeetingsTotalElements,
