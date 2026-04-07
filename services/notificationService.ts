@@ -1,34 +1,10 @@
 import { apiClient } from "./apiClient";
 
-export type NotificationEventType =
-  | "APPLICATION_CREATED"
-  | "APPLICATION_APPROVED"
-  | "APPLICATION_REJECTED"
-  | "COMMENT_CREATED";
-
-export interface NotificationEventRequest {
-  eventType: NotificationEventType;
-  actorUserId: number;
-  recipientUserIds: number[];
-  postId: number;
-  commentId?: number;
-  parentCommentId?: number | null;
-  resourceType: "POST" | "COMMENT" | "APPLICATION";
-  resourceId: number;
-  message: string;
-}
-
 interface ApiResponse<T> {
   success: boolean;
   message: string;
   data: T;
 }
-
-export interface NotificationEventResponse {
-  notificationIds: number[];
-}
-
-const NOTIFICATION_EVENT_ENDPOINT = "/api/v1/notifications/events";
 
 export interface NotificationResponse {
   notificationId: number;
@@ -102,18 +78,4 @@ export const markNotificationAsRead = async (
       method: "PATCH",
     },
   );
-};
-
-export const createNotificationEvent = async (
-  request: NotificationEventRequest,
-): Promise<NotificationEventResponse> => {
-  const response = await apiClient<ApiResponse<NotificationEventResponse>>(
-    NOTIFICATION_EVENT_ENDPOINT,
-    {
-      method: "POST",
-      body: JSON.stringify(request),
-    },
-  );
-
-  return response.data;
 };

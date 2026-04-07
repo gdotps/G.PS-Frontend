@@ -29,7 +29,6 @@ import {
   deletePost as apiDeletePost,
   PostRequest,
 } from "../services/postService";
-import { createNotificationEvent } from "../services/notificationService";
 import { toggleLike as apiToggleLike } from "../services/likeService";
 import {
   getCurrentSubscription,
@@ -716,19 +715,6 @@ export const useAppLogic = () => {
     return apiFetchMyApplicantPosts();
   }, []);
 
-  const emitNotificationEventSafely = useCallback(
-    async (request: Parameters<typeof createNotificationEvent>[0]) => {
-      if (request.recipientUserIds.length === 0) return;
-
-      try {
-        await createNotificationEvent(request);
-      } catch (error) {
-        console.error("Failed to create notification event:", error);
-      }
-    },
-    [],
-  );
-
   // 액션
   const toggleLike = async (postId: number) => {
     if (isLikeLoading) return;
@@ -772,18 +758,6 @@ export const useAppLogic = () => {
     }
     try {
       await apiApplyToPost(selectedPost.id);
-      await emitNotificationEventSafely({
-        eventType: "APPLICATION_CREATED",
-        actorUserId: currentUser.userId,
-        recipientUserIds:
-          selectedPost.authorId === currentUser.userId
-            ? []
-            : [selectedPost.authorId],
-        postId: selectedPost.id,
-        resourceType: "APPLICATION",
-        resourceId: selectedPost.id,
-        message: `${currentUser.nickname}님이 '${selectedPost.title}' 모집글에 지원했어요.`,
-      });
 
       const refreshedPost = await apiFetchPostById(selectedPost.id).catch(
         () => null,
@@ -859,16 +833,6 @@ export const useAppLogic = () => {
         userId: applicantId,
         status: "APPROVED",
       });
-      await emitNotificationEventSafely({
-        eventType: "APPLICATION_APPROVED",
-        actorUserId: currentUser.userId,
-        recipientUserIds:
-          applicantId === currentUser.userId ? [] : [applicantId],
-        postId,
-        resourceType: "APPLICATION",
-        resourceId: postId,
-        message: `${currentUser.nickname}님이 지원을 승인했어요.`,
-      });
 
       const updatedPost = {
         ...post,
@@ -896,16 +860,6 @@ export const useAppLogic = () => {
         await apiChangePostApplicantStatus(postId, {
           userId: applicantId,
           status: "REJECTED",
-        });
-        await emitNotificationEventSafely({
-          eventType: "APPLICATION_REJECTED",
-          actorUserId: currentUser.userId,
-          recipientUserIds:
-            applicantId === currentUser.userId ? [] : [applicantId],
-          postId,
-          resourceType: "APPLICATION",
-          resourceId: postId,
-          message: `${currentUser.nickname}님이 지원을 거절했어요.`,
         });
 
         const updatedPost = {
@@ -950,18 +904,6 @@ export const useAppLogic = () => {
           ].filter((userId): userId is number => userId !== null),
         ),
       );
-
-      await emitNotificationEventSafely({
-        eventType: "COMMENT_CREATED",
-        actorUserId: currentUser.userId,
-        recipientUserIds,
-        postId: selectedPost.id,
-        commentId: createdComment.commentId,
-        parentCommentId: parentId ?? null,
-        resourceType: "COMMENT",
-        resourceId: createdComment.commentId,
-        message: `${currentUser.nickname}님이 '${selectedPost.title}' 글에 댓글을 남겼어요.`,
-      });
 
       const newComment: Comment = {
         id: createdComment.commentId,

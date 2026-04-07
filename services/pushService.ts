@@ -113,15 +113,16 @@ export const subscribeToPush = async (): Promise<PushSubscription | null> => {
     // Convert VAPID key to ArrayBuffer
     console.log("4️⃣ Converting VAPID key to Uint8Array...");
     const vapidUint8Array = urlBase64ToUint8Array(vapidPublicKey);
-    const applicationServerKey = vapidUint8Array.buffer;
+    const applicationServerKey = vapidUint8Array.buffer as ArrayBuffer;
     console.log("✅ VAPID key converted successfully");
 
     // Subscribe to push
     console.log("5️⃣ Subscribing to push manager...");
-    const subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey,
-    });
+    const subscription: PushSubscription =
+      await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey,
+      });
 
     console.log("✅ Push subscription created:", subscription);
 

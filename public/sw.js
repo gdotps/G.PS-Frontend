@@ -48,6 +48,18 @@ self.addEventListener('push', event => {
     event.waitUntil(
       self.registration.showNotification(data.title || '새 알림', options)
     );
+
+    // Send message to all open windows for in-app notification
+    event.waitUntil(
+      self.clients.matchAll().then(clients => {
+        clients.forEach(client => {
+          client.postMessage({
+            type: 'PUSH_RECEIVED',
+            payload: data
+          });
+        });
+      })
+    );
   } catch (error) {
     console.error('Error processing push data:', error);
     // Fallback notification
