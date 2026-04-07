@@ -29,7 +29,15 @@ import {
   deletePost as apiDeletePost,
   PostRequest,
 } from "../services/postService";
+import { createNotificationEvent } from "../services/notificationService";
 import { toggleLike as apiToggleLike } from "../services/likeService";
+import {
+  getCurrentSubscription,
+  isPushSupported,
+  sendSubscriptionToBackend,
+  subscribeToPush,
+  unsubscribeFromPush,
+} from "../services/pushService";
 import {
   ChatIncomingMessage,
   ChatMessageReadEvent,
@@ -91,6 +99,9 @@ export const useAppLogic = () => {
     useState<number>(0);
   const [isLikedMeetingsLoading, setIsLikedMeetingsLoading] =
     useState<boolean>(false);
+  const [isPushSupported, setIsPushSupported] = useState<boolean>(false);
+  const [pushSubscription, setPushSubscription] = useState<PushSubscription | null>(null);
+  const [isPushLoading, setIsPushLoading] = useState<boolean>(false);
 
   const mapIncomingMessageToState = (item: ChatIncomingMessage): Message => ({
     id: item.id,
@@ -605,6 +616,19 @@ export const useAppLogic = () => {
     return apiFetchMyApplicantPosts();
   }, []);
 
+  const emitNotificationEventSafely = useCallback(
+    async (request: Parameters<typeof createNotificationEvent>[0]) => {
+      if (request.recipientUserIds.length === 0) return;
+
+      try {
+        await createNotificationEvent(request);
+      } catch (error) {
+        console.error("Failed to create notification event:", error);
+      }
+    },
+    [],
+  );
+
   // 액션
   const toggleLike = async (postId: number) => {
     if (isLikeLoading) return;
@@ -648,6 +672,18 @@ export const useAppLogic = () => {
     }
     try {
       await apiApplyToPost(selectedPost.id);
+      await emitNotificationEventSafely({
+        eventType: "APPLICATION_CREATED",
+        actorUserId: currentUser.userId,
+        recipientUserIds:
+          selectedPost.authorId === currentUser.userId
+            ? []
+            : [selectedPost.authorId],
+        postId: selectedPost.id,
+        resourceType: "APPLICATION",
+        resourceId: selectedPost.id,
+        message: `${currentUser.nickname}님이 '${selectedPost.title}' 모집글에 지원했어요.`,
+      });
 
       const refreshedPost = await apiFetchPostById(selectedPost.id).catch(
         () => null,
@@ -723,6 +759,16 @@ export const useAppLogic = () => {
         userId: applicantId,
         status: "APPROVED",
       });
+      await emitNotificationEventSafely({
+        eventType: "APPLICATION_APPROVED",
+        actorUserId: currentUser.userId,
+        recipientUserIds:
+          applicantId === currentUser.userId ? [] : [applicantId],
+        postId,
+        resourceType: "APPLICATION",
+        resourceId: postId,
+        message: `${currentUser.nickname}님이 지원을 승인했어요.`,
+      });
 
       const updatedPost = {
         ...post,
@@ -751,6 +797,16 @@ export const useAppLogic = () => {
           userId: applicantId,
           status: "REJECTED",
         });
+        await emitNotificationEventSafely({
+          eventType: "APPLICATION_REJECTED",
+          actorUserId: currentUser.userId,
+          recipientUserIds:
+            applicantId === currentUser.userId ? [] : [applicantId],
+          postId,
+          resourceType: "APPLICATION",
+          resourceId: postId,
+          message: `${currentUser.nickname}님이 지원을 거절했어요.`,
+        });
 
         const updatedPost = {
           ...post,
@@ -778,6 +834,33 @@ export const useAppLogic = () => {
       const createdComment = await apiCreateComment(selectedPost.id, {
         content: text,
         parentId: parentId ?? null,
+      });
+
+      const recipientUserIds = Array.from(
+        new Set(
+          [
+            selectedPost.authorId !== currentUser.userId
+              ? selectedPost.authorId
+              : null,
+            parentId
+              ? (selectedPost.comments || []).find(
+                  (comment) => comment.id === parentId,
+                )?.authorId ?? null
+              : null,
+          ].filter((userId): userId is number => userId !== null),
+        ),
+      );
+
+      await emitNotificationEventSafely({
+        eventType: "COMMENT_CREATED",
+        actorUserId: currentUser.userId,
+        recipientUserIds,
+        postId: selectedPost.id,
+        commentId: createdComment.commentId,
+        parentCommentId: parentId ?? null,
+        resourceType: "COMMENT",
+        resourceId: createdComment.commentId,
+        message: `${currentUser.nickname}님이 '${selectedPost.title}' 글에 댓글을 남겼어요.`,
       });
 
       const newComment: Comment = {
@@ -983,6 +1066,24 @@ export const useAppLogic = () => {
     };
   }, []);
 
+  // Initialize push notifications
+  useEffect(() => {
+    const initializePush = async () => {
+      setIsPushSupported(isPushSupported());
+
+      if (isPushSupported()) {
+        try {
+          const subscription = await getCurrentSubscription();
+          setPushSubscription(subscription);
+        } catch (error) {
+          console.error('Error checking push subscription:', error);
+        }
+      }
+    };
+
+    void initializePush();
+  }, []);
+
   useEffect(() => {
     if (currentView !== ViewState.HOME) return;
     void loadHomePosts();
@@ -1074,6 +1175,42 @@ export const useAppLogic = () => {
   const handleRejoinCancel = () => {
     setShowRejoinConfirm(false);
     setCurrentView(ViewState.ONBOARDING);
+  };
+
+  const handleSubscribeToPush = async () => {
+    if (!isPushSupported) {
+      alert('이 브라우저에서는 푸시 알림을 지원하지 않습니다.');
+      return;
+    }
+
+    setIsPushLoading(true);
+    try {
+      const subscription = await subscribeToPush();
+      if (subscription) {
+        await sendSubscriptionToBackend(subscription);
+        setPushSubscription(subscription);
+        alert('푸시 알림 구독이 완료되었습니다.');
+      }
+    } catch (error) {
+      console.error('푸시 구독 실패:', error);
+      alert('푸시 알림 구독에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setIsPushLoading(false);
+    }
+  };
+
+  const handleUnsubscribeFromPush = async () => {
+    setIsPushLoading(true);
+    try {
+      await unsubscribeFromPush();
+      setPushSubscription(null);
+      alert('푸시 알림 구독이 해지되었습니다.');
+    } catch (error) {
+      console.error('푸시 구독 해지 실패:', error);
+      alert('푸시 알림 구독 해지에 실패했습니다.');
+    } finally {
+      setIsPushLoading(false);
+    }
   };
 
   const toggleNotification = async () => {
@@ -1350,5 +1487,11 @@ export const useAppLogic = () => {
     isLikedMeetingsLoading,
     goToBookmarks,
     loadMoreLikedMeetings,
+    // 푸시 알림
+    isPushSupported,
+    pushSubscription,
+    isPushLoading,
+    handleSubscribeToPush,
+    handleUnsubscribeFromPush,
   };
 };

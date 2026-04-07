@@ -80,6 +80,12 @@ export default function App() {
     isLikedMeetingsLoading,
     goToBookmarks,
     loadMoreLikedMeetings,
+    // Push notifications
+    isPushSupported,
+    pushSubscription,
+    isPushLoading,
+    handleSubscribeToPush,
+    handleUnsubscribeFromPush,
   } = useAppLogic();
 
   useEffect(() => {
@@ -186,6 +192,11 @@ export default function App() {
             onLogout={handleLogout}
             onDeleteAccount={handleDeleteAccount}
             onToggleNotification={toggleNotification}
+            isPushSupported={isPushSupported}
+            pushSubscription={pushSubscription}
+            isPushLoading={isPushLoading}
+            onSubscribeToPush={handleSubscribeToPush}
+            onUnsubscribeFromPush={handleUnsubscribeFromPush}
             isLoading={isProfileLoading}
           />
         );
