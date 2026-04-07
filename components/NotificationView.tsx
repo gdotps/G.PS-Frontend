@@ -1,7 +1,14 @@
 import React from "react";
 import { Notification } from "../types";
 import { Header } from "./Header";
-import { ChevronLeft, Bell } from "lucide-react";
+import {
+  ChevronLeft,
+  Bell,
+  MessageSquare,
+  Users,
+  UserPlus,
+  MessageCircleMore,
+} from "lucide-react";
 
 export const NotificationView: React.FC<{
   notifications: Notification[];
@@ -10,7 +17,43 @@ export const NotificationView: React.FC<{
   onLoadMore?: () => void;
   isLoading?: boolean;
   hasMore?: boolean;
-}> = ({ notifications, onBack, onNotificationClick, onLoadMore, isLoading = false, hasMore = false }) => {
+}> = ({
+  notifications,
+  onBack,
+  onNotificationClick,
+  onLoadMore,
+  isLoading = false,
+  hasMore = false,
+}) => {
+  const getIcon = (eventType: string) => {
+    switch (eventType) {
+      case "COMMENT_CREATED":
+        return <MessageSquare size={16} className="text-white" />;
+      case "APPLICATION_CREATED":
+        return <UserPlus size={16} className="text-white" />;
+      case "APPLICATION_APPROVED":
+        return <Users size={16} className="text-white" />;
+      case "CHAT_MESSAGE":
+        return <MessageCircleMore size={16} className="text-white" />;
+      default:
+        return <Bell size={16} className="text-white" />;
+    }
+  };
+
+  const getBgColor = (eventType: string) => {
+    switch (eventType) {
+      case "COMMENT_CREATED":
+        return "bg-gray-400";
+      case "APPLICATION_CREATED":
+        return "bg-red-500";
+      case "APPLICATION_APPROVED":
+        return "bg-gps-500";
+      case "CHAT_MESSAGE":
+        return "bg-blue-500";
+      default:
+        return "bg-gps-500";
+    }
+  };
   return (
     <div className="bg-white min-h-screen">
       <Header leftIcon={<ChevronLeft />} onLeftClick={onBack} title="알림" />
@@ -29,6 +72,11 @@ export const NotificationView: React.FC<{
               } hover:bg-gray-100`}
               onClick={() => onNotificationClick?.(notif)}
             >
+              <div
+                className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 shadow-sm ${getBgColor(notif.eventType)}`}
+              >
+                {getIcon(notif.eventType)}
+              </div>
               <div className="flex-1">
                 <p className="text-sm text-gray-800 leading-snug mb-1">
                   {notif.message}

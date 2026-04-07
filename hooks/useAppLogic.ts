@@ -79,8 +79,12 @@ export const useAppLogic = () => {
   const [selectedChatId, setSelectedChatId] = useState<number | null>(null);
   const [posts, setPosts] = useState<Post[]>(MOCK_POSTS);
   const [chats, setChats] = useState<ChatRoom[]>([]);
-  const [notifications, setNotifications] =
-    useState<Notification[]>(MOCK_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [inAppNotification, setInAppNotification] = useState<{
+    title: string;
+    body: string;
+    data?: Record<string, any>;
+  } | null>(null);
   const [bookmarkedIds, setBookmarkedIds] = useState<number[]>([]);
   const [selectedChatParticipants, setSelectedChatParticipants] = useState<
     User[]
@@ -109,7 +113,7 @@ export const useAppLogic = () => {
     useState<PushSubscription | null>(null);
   const [isPushLoading, setIsPushLoading] = useState<boolean>(false);
   const [notificationPage, setNotificationPage] = useState<number>(0);
-  const [notificationIsLast, setNotificationIsLast] = useState<boolean>(false);
+  const [notificationIsLast, setNotificationIsLast] = useState<boolean>(true);
   const [isNotificationLoading, setIsNotificationLoading] =
     useState<boolean>(false);
 
@@ -607,56 +611,63 @@ export const useAppLogic = () => {
     fetchLikedMeetings,
   ]);
 
-  const fetchNotifications = useCallback(async (page: number = 0) => {
+  const fetchNotifications = useCallback(async () => {
+    console.log("🔄 Starting to fetch notifications...");
     setIsNotificationLoading(true);
     try {
-      const data = await getMyNotifications(page);
-      if (page === 0) {
-        setNotifications(
-          data.content.map((notification) => ({
-            id: notification.notificationId,
-            eventType: notification.eventType,
-            resourceType: notification.resourceType,
-            resourceId: notification.resourceId,
-            actorUserId: notification.actorUserId,
-            actorNickname: notification.actorNickname,
-            postId: notification.postId,
-            commentId: notification.commentId,
-            chatRoomId: notification.chatRoomId,
-            message: notification.message,
-            isRead: notification.isRead,
-            createdAt: new Date(notification.createdAt).getTime(),
-            readAt: notification.readAt
-              ? new Date(notification.readAt).getTime()
-              : undefined,
-          })),
-        );
-      } else {
-        setNotifications((prev) => [
-          ...prev,
-          ...data.content.map((notification) => ({
-            id: notification.notificationId,
-            eventType: notification.eventType,
-            resourceType: notification.resourceType,
-            resourceId: notification.resourceId,
-            actorUserId: notification.actorUserId,
-            actorNickname: notification.actorNickname,
-            postId: notification.postId,
-            commentId: notification.commentId,
-            chatRoomId: notification.chatRoomId,
-            message: notification.message,
-            isRead: notification.isRead,
-            createdAt: new Date(notification.createdAt).getTime(),
-            readAt: notification.readAt
-              ? new Date(notification.readAt).getTime()
-              : undefined,
-          })),
-        ]);
-      }
-      setNotificationPage(page);
-      setNotificationIsLast(data.last);
+      console.log("📡 Calling getMyNotifications API...");
+      const data = await getMyNotifications();
+      console.log("📢 Notifications fetched successfully:", data);
+      console.log("📊 Number of notifications received:", data.length);
+      //if (page === 0) {
+      setNotifications(
+        data.map((notification) => ({
+          id: notification.notificationId,
+          eventType: notification.eventType,
+          resourceType: notification.resourceType,
+          resourceId: notification.resourceId,
+          actorUserId: notification.actorUserId,
+          actorNickname: notification.actorNickname,
+          postId: notification.postId,
+          commentId: notification.commentId,
+          chatRoomId: notification.chatRoomId,
+          message: notification.message,
+          isRead: notification.isRead,
+          createdAt: new Date(notification.createdAt).getTime(),
+          readAt: notification.readAt
+            ? new Date(notification.readAt).getTime()
+            : undefined,
+        })),
+      );
+      // } else {
+      //   setNotifications((prev) => [
+      //     ...prev,
+      //     ...data.map((notification) => ({
+      //       id: notification.notificationId,
+      //       eventType: notification.eventType,
+      //       resourceType: notification.resourceType,
+      //       resourceId: notification.resourceId,
+      //       actorUserId: notification.actorUserId,
+      //       actorNickname: notification.actorNickname,
+      //       postId: notification.postId,
+      //       commentId: notification.commentId,
+      //       chatRoomId: notification.chatRoomId,
+      //       message: notification.message,
+      //       isRead: notification.isRead,
+      //       createdAt: new Date(notification.createdAt).getTime(),
+      //       readAt: notification.readAt
+      //         ? new Date(notification.readAt).getTime()
+      //         : undefined,
+      //     })),
+      //   ]);
+      // }
+      //setNotifications()
+      // Since backend now returns all notifications at once, always set as last page
+      //setNotificationIsLast(true);
     } catch (error) {
       console.error("알림 목록 조회 오류:", error);
+      // API 호출 실패 시 빈 배열로 설정
+      setNotifications([]);
       alert("알림 목록을 불러오는 데 실패했습니다.");
     } finally {
       setIsNotificationLoading(false);
@@ -665,19 +676,13 @@ export const useAppLogic = () => {
 
   const goToNotifications = () => {
     setCurrentView(ViewState.NOTIFICATIONS);
-    fetchNotifications(0);
+    fetchNotifications();
   };
 
   const loadMoreNotifications = useCallback(() => {
-    if (!notificationIsLast && !isNotificationLoading) {
-      fetchNotifications(notificationPage + 1);
-    }
-  }, [
-    notificationIsLast,
-    isNotificationLoading,
-    notificationPage,
-    fetchNotifications,
-  ]);
+    // Since backend returns all notifications at once, no more loading needed
+    console.log("ℹ️ All notifications already loaded");
+  }, []);
 
   const handleMarkNotificationAsRead = async (notificationId: number) => {
     try {
@@ -1164,11 +1169,14 @@ export const useAppLogic = () => {
   // Initialize push notifications
   useEffect(() => {
     const initializePush = async () => {
-      setIsPushSupportedState(isPushSupported());
+      const supported = isPushSupported();
+      setIsPushSupportedState(supported);
+      console.log("🔧 Push supported:", supported);
 
-      if (isPushSupportedState) {
+      if (supported) {
         try {
           const subscription = await getCurrentSubscription();
+          console.log("🔔 Current push subscription:", subscription);
           setPushSubscription(subscription);
         } catch (error) {
           console.error("Error checking push subscription:", error);
@@ -1177,6 +1185,38 @@ export const useAppLogic = () => {
     };
 
     void initializePush();
+  }, []);
+
+  useEffect(() => {
+    const handleServiceWorkerMessage = (event: MessageEvent) => {
+      const message = event.data;
+      if (!message || message.type !== "NEW_NOTIFICATION") return;
+
+      const payload = message.payload;
+      console.log("📲 In-app push message received:", payload);
+      setInAppNotification({
+        title: payload.title || "새 알림",
+        body: payload.body || payload.message || "새 알림이 도착했습니다.",
+        data: payload,
+      });
+      void fetchNotifications();
+    };
+
+    navigator.serviceWorker?.addEventListener(
+      "message",
+      handleServiceWorkerMessage,
+    );
+
+    return () => {
+      navigator.serviceWorker?.removeEventListener(
+        "message",
+        handleServiceWorkerMessage,
+      );
+    };
+  }, [fetchNotifications]);
+
+  const dismissInAppNotification = useCallback(() => {
+    setInAppNotification(null);
   }, []);
 
   useEffect(() => {
@@ -1594,5 +1634,7 @@ export const useAppLogic = () => {
     handleMarkNotificationAsRead,
     isNotificationLoading,
     notificationIsLast,
+    inAppNotification,
+    dismissInAppNotification,
   };
 };

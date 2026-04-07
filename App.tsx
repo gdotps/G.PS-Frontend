@@ -92,6 +92,8 @@ export default function App() {
     handleMarkNotificationAsRead,
     isNotificationLoading,
     notificationIsLast,
+    inAppNotification,
+    dismissInAppNotification,
   } = useAppLogic();
 
   useEffect(() => {
@@ -130,7 +132,7 @@ export default function App() {
             posts={posts}
             notifications={notifications}
             onViewPost={goToPostDetail}
-            onOpenNotifications={() => setCurrentView(ViewState.NOTIFICATIONS)}
+            onOpenNotifications={goToNotifications}
           />
         );
       case ViewState.POST_DETAIL:
@@ -284,6 +286,44 @@ export default function App() {
   return (
     <div className="bg-white min-h-screen max-w-md mx-auto shadow-2xl overflow-hidden relative font-sans text-gray-900">
       {renderContent()}
+
+      {inAppNotification && (
+        <div className="fixed inset-x-0 top-4 z-50 flex justify-center px-4 pointer-events-none">
+          <div className="w-full max-w-md pointer-events-auto bg-white border border-gray-200 shadow-xl rounded-3xl overflow-hidden">
+            <div className="flex items-start gap-3 p-4">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gps-500 text-white text-lg">
+                🔔
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-gray-900">
+                    {inAppNotification.title}
+                  </p>
+                  <button
+                    className="text-gray-400 hover:text-gray-600"
+                    onClick={dismissInAppNotification}
+                  >
+                    ×
+                  </button>
+                </div>
+                <p className="mt-2 text-xs text-gray-500">
+                  {inAppNotification.body}
+                </p>
+                <button
+                  className="mt-3 w-full rounded-2xl bg-gps-500 px-3 py-2 text-sm font-medium text-white hover:bg-gps-600"
+                  onClick={() => {
+                    dismissInAppNotification();
+                    goToNotifications();
+                  }}
+                >
+                  알림 보기
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showNav && (
         <BottomNav currentView={currentView} onChangeView={handleChangeView} />
       )}

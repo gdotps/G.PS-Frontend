@@ -69,18 +69,28 @@ interface NotificationListResponse {
 
 const NOTIFICATIONS_ENDPOINT = "/api/v1/notifications";
 
-export const getMyNotifications = async (
-  page: number = 0,
-  size: number = 20,
-): Promise<NotificationListResponse> => {
-  const response = await apiClient<ApiResponse<NotificationListResponse>>(
-    `${NOTIFICATIONS_ENDPOINT}?page=${page}&size=${size}`,
-    {
-      method: "GET",
-    },
-  );
+export const getMyNotifications = async (): Promise<NotificationResponse[]> => {
+  try {
+    const response = await apiClient<ApiResponse<NotificationResponse[]>>(
+      `${NOTIFICATIONS_ENDPOINT}`,
+      {
+        method: "GET",
+      },
+    );
 
-  return response.data;
+    if (!response.data) {
+      console.warn("No notification data in response:", response);
+      console.log("데이터가 없습니다.");
+      // 빈 배열 반환
+      return [];
+    }
+
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching notifications:", error);
+    // 에러 발생 시에도 빈 배열 반환
+    return [];
+  }
 };
 
 export const markNotificationAsRead = async (
