@@ -30,7 +30,7 @@ export const apiClient = async <T>(
     path: string,
     options: RequestInit = {}
 ): Promise<T> => {
-    const url = `${API_BASE_URL}${path}`;
+    const url = path.startsWith("http") ? path : `${API_BASE_URL}${path}`;
     const init: RequestInit = {
         ...options,
         credentials: "include",
@@ -39,6 +39,7 @@ export const apiClient = async <T>(
             ...options.headers,
         },
     };
+    console.log("[apiClient] request URL:", url, "options:", init);
 
     let response = await fetch(url, init);
 

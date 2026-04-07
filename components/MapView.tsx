@@ -19,7 +19,7 @@ export const MapView: React.FC<{ posts: Post[], onViewPost: (post: Post) => void
     const [mapCenter, setMapCenter] = useState({ lat: 37.5665, lng: 126.9780 });
     const [loading, setLoading] = useState(false);
     const [isTracking, setIsTracking] = useState(false);
-    const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+    const [selectedPostId, setSelectedPostId] = useState<number | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [activeCategory, setActiveCategory] = useState('ALL');
     const [mapBounds, setMapBounds] = useState<any>(null);
@@ -140,7 +140,7 @@ export const MapView: React.FC<{ posts: Post[], onViewPost: (post: Post) => void
                     />
 
                     {filteredPosts.map((post) => {
-                        const isMyPost = post.authorId === CURRENT_USER.id;
+                        const isMyPost = post.authorId === CURRENT_USER.userId;
                         const isSelected = selectedPostId === post.id;
                         const pinColor = isSelected ? '#111827' : (isMyPost ? '#FFD43B' : '#FFFFFF');
                         const iconColor = isSelected ? '#FFFFFF' : (isMyPost ? '#111827' : '#4B5563');

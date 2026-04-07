@@ -3,11 +3,12 @@ import { Notification } from "../types";
 import { Header } from "./Header";
 import {
   ChevronLeft,
-  Bell,
   MessageSquare,
   Users,
-  UserPlus,
+  Info,
+  Bell,
   MessageCircleMore,
+  UserPlus,
 } from "lucide-react";
 
 export const NotificationView: React.FC<{
@@ -17,14 +18,7 @@ export const NotificationView: React.FC<{
   onLoadMore?: () => void;
   isLoading?: boolean;
   hasMore?: boolean;
-}> = ({
-  notifications,
-  onBack,
-  onNotificationClick,
-  onLoadMore,
-  isLoading = false,
-  hasMore = false,
-}) => {
+}> = ({ notifications, onBack, onNotificationClick, onLoadMore, isLoading = false, hasMore = false }) => {
   const getIcon = (eventType: string) => {
     switch (eventType) {
       case "COMMENT_CREATED":
@@ -54,6 +48,8 @@ export const NotificationView: React.FC<{
         return "bg-gps-500";
     }
   };
+  };
+
   return (
     <div className="bg-white min-h-screen">
       <Header leftIcon={<ChevronLeft />} onLeftClick={onBack} title="알림" />
@@ -89,6 +85,7 @@ export const NotificationView: React.FC<{
                   })}
                 </span>
               </div>
+              {/* Red Point for Unread */}
               {!notif.isRead && (
                 <div className="w-2 h-2 bg-red-500 rounded-full mt-2"></div>
               )}
