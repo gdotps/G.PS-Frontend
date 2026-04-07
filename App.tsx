@@ -81,11 +81,17 @@ export default function App() {
     goToBookmarks,
     loadMoreLikedMeetings,
     // Push notifications
-    isPushSupported,
+    isPushSupportedState,
     pushSubscription,
     isPushLoading,
     handleSubscribeToPush,
     handleUnsubscribeFromPush,
+    // Notifications
+    goToNotifications,
+    loadMoreNotifications,
+    handleMarkNotificationAsRead,
+    isNotificationLoading,
+    notificationIsLast,
   } = useAppLogic();
 
   useEffect(() => {
@@ -192,7 +198,7 @@ export default function App() {
             onLogout={handleLogout}
             onDeleteAccount={handleDeleteAccount}
             onToggleNotification={toggleNotification}
-            isPushSupported={isPushSupported}
+            isPushSupported={isPushSupportedState}
             pushSubscription={pushSubscription}
             isPushLoading={isPushLoading}
             onSubscribeToPush={handleSubscribeToPush}
@@ -202,7 +208,28 @@ export default function App() {
         );
       case ViewState.NOTIFICATIONS:
         return (
-          <NotificationView notifications={notifications} onBack={goToHome} />
+          <NotificationView
+            notifications={notifications}
+            onBack={goToHome}
+            onNotificationClick={async (notification) => {
+              // 알림 읽음 처리
+              if (!notification.isRead) {
+                await handleMarkNotificationAsRead(notification.id);
+              }
+              // 알림 타입에 따라 네비게이션
+              if (notification.postId) {
+                goToPostDetailById(notification.postId);
+              } else if (notification.chatRoomId) {
+                goToChatRoom(notification.chatRoomId);
+              } else {
+                // 다른 타입의 알림은 홈으로
+                goToHome();
+              }
+            }}
+            onLoadMore={loadMoreNotifications}
+            isLoading={isNotificationLoading}
+            hasMore={!notificationIsLast}
+          />
         );
       case ViewState.BOOKMARKS:
         return (

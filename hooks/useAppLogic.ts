@@ -39,6 +39,10 @@ import {
   unsubscribeFromPush,
 } from "../services/pushService";
 import {
+  getMyNotifications,
+  markNotificationAsRead,
+} from "../services/notificationService";
+import {
   ChatIncomingMessage,
   ChatMessageReadEvent,
   deleteChatMessage,
@@ -99,9 +103,15 @@ export const useAppLogic = () => {
     useState<number>(0);
   const [isLikedMeetingsLoading, setIsLikedMeetingsLoading] =
     useState<boolean>(false);
-  const [isPushSupported, setIsPushSupported] = useState<boolean>(false);
-  const [pushSubscription, setPushSubscription] = useState<PushSubscription | null>(null);
+  const [isPushSupportedState, setIsPushSupportedState] =
+    useState<boolean>(false);
+  const [pushSubscription, setPushSubscription] =
+    useState<PushSubscription | null>(null);
   const [isPushLoading, setIsPushLoading] = useState<boolean>(false);
+  const [notificationPage, setNotificationPage] = useState<number>(0);
+  const [notificationIsLast, setNotificationIsLast] = useState<boolean>(false);
+  const [isNotificationLoading, setIsNotificationLoading] =
+    useState<boolean>(false);
 
   const mapIncomingMessageToState = (item: ChatIncomingMessage): Message => ({
     id: item.id,
@@ -597,6 +607,91 @@ export const useAppLogic = () => {
     fetchLikedMeetings,
   ]);
 
+  const fetchNotifications = useCallback(async (page: number = 0) => {
+    setIsNotificationLoading(true);
+    try {
+      const data = await getMyNotifications(page);
+      if (page === 0) {
+        setNotifications(
+          data.content.map((notification) => ({
+            id: notification.notificationId,
+            eventType: notification.eventType,
+            resourceType: notification.resourceType,
+            resourceId: notification.resourceId,
+            actorUserId: notification.actorUserId,
+            actorNickname: notification.actorNickname,
+            postId: notification.postId,
+            commentId: notification.commentId,
+            chatRoomId: notification.chatRoomId,
+            message: notification.message,
+            isRead: notification.isRead,
+            createdAt: new Date(notification.createdAt).getTime(),
+            readAt: notification.readAt
+              ? new Date(notification.readAt).getTime()
+              : undefined,
+          })),
+        );
+      } else {
+        setNotifications((prev) => [
+          ...prev,
+          ...data.content.map((notification) => ({
+            id: notification.notificationId,
+            eventType: notification.eventType,
+            resourceType: notification.resourceType,
+            resourceId: notification.resourceId,
+            actorUserId: notification.actorUserId,
+            actorNickname: notification.actorNickname,
+            postId: notification.postId,
+            commentId: notification.commentId,
+            chatRoomId: notification.chatRoomId,
+            message: notification.message,
+            isRead: notification.isRead,
+            createdAt: new Date(notification.createdAt).getTime(),
+            readAt: notification.readAt
+              ? new Date(notification.readAt).getTime()
+              : undefined,
+          })),
+        ]);
+      }
+      setNotificationPage(page);
+      setNotificationIsLast(data.last);
+    } catch (error) {
+      console.error("알림 목록 조회 오류:", error);
+      alert("알림 목록을 불러오는 데 실패했습니다.");
+    } finally {
+      setIsNotificationLoading(false);
+    }
+  }, []);
+
+  const goToNotifications = () => {
+    setCurrentView(ViewState.NOTIFICATIONS);
+    fetchNotifications(0);
+  };
+
+  const loadMoreNotifications = useCallback(() => {
+    if (!notificationIsLast && !isNotificationLoading) {
+      fetchNotifications(notificationPage + 1);
+    }
+  }, [
+    notificationIsLast,
+    isNotificationLoading,
+    notificationPage,
+    fetchNotifications,
+  ]);
+
+  const handleMarkNotificationAsRead = async (notificationId: number) => {
+    try {
+      await markNotificationAsRead(notificationId);
+      setNotifications((prev) =>
+        prev.map((notif) =>
+          notif.id === notificationId ? { ...notif, isRead: true } : notif,
+        ),
+      );
+    } catch (error) {
+      console.error("알림 읽음 처리 오류:", error);
+    }
+  };
+
   const loadMoreApplications = useCallback(() => {
     if (!myApplicationsIsLast && !isApplicationsLoading) {
       fetchMyApplications(myApplicationsPage + 1);
@@ -843,9 +938,9 @@ export const useAppLogic = () => {
               ? selectedPost.authorId
               : null,
             parentId
-              ? (selectedPost.comments || []).find(
+              ? ((selectedPost.comments || []).find(
                   (comment) => comment.id === parentId,
-                )?.authorId ?? null
+                )?.authorId ?? null)
               : null,
           ].filter((userId): userId is number => userId !== null),
         ),
@@ -1069,14 +1164,14 @@ export const useAppLogic = () => {
   // Initialize push notifications
   useEffect(() => {
     const initializePush = async () => {
-      setIsPushSupported(isPushSupported());
+      setIsPushSupportedState(isPushSupported());
 
-      if (isPushSupported()) {
+      if (isPushSupportedState) {
         try {
           const subscription = await getCurrentSubscription();
           setPushSubscription(subscription);
         } catch (error) {
-          console.error('Error checking push subscription:', error);
+          console.error("Error checking push subscription:", error);
         }
       }
     };
@@ -1178,8 +1273,8 @@ export const useAppLogic = () => {
   };
 
   const handleSubscribeToPush = async () => {
-    if (!isPushSupported) {
-      alert('이 브라우저에서는 푸시 알림을 지원하지 않습니다.');
+    if (!isPushSupportedState) {
+      alert("이 브라우저에서는 푸시 알림을 지원하지 않습니다.");
       return;
     }
 
@@ -1189,11 +1284,11 @@ export const useAppLogic = () => {
       if (subscription) {
         await sendSubscriptionToBackend(subscription);
         setPushSubscription(subscription);
-        alert('푸시 알림 구독이 완료되었습니다.');
+        alert("푸시 알림 구독이 완료되었습니다.");
       }
     } catch (error) {
-      console.error('푸시 구독 실패:', error);
-      alert('푸시 알림 구독에 실패했습니다. 다시 시도해주세요.');
+      console.error("푸시 구독 실패:", error);
+      alert("푸시 알림 구독에 실패했습니다. 다시 시도해주세요.");
     } finally {
       setIsPushLoading(false);
     }
@@ -1204,10 +1299,10 @@ export const useAppLogic = () => {
     try {
       await unsubscribeFromPush();
       setPushSubscription(null);
-      alert('푸시 알림 구독이 해지되었습니다.');
+      alert("푸시 알림 구독이 해지되었습니다.");
     } catch (error) {
-      console.error('푸시 구독 해지 실패:', error);
-      alert('푸시 알림 구독 해지에 실패했습니다.');
+      console.error("푸시 구독 해지 실패:", error);
+      alert("푸시 알림 구독 해지에 실패했습니다.");
     } finally {
       setIsPushLoading(false);
     }
@@ -1488,10 +1583,16 @@ export const useAppLogic = () => {
     goToBookmarks,
     loadMoreLikedMeetings,
     // 푸시 알림
-    isPushSupported,
+    isPushSupportedState,
     pushSubscription,
     isPushLoading,
     handleSubscribeToPush,
     handleUnsubscribeFromPush,
+    // 알림
+    goToNotifications,
+    loadMoreNotifications,
+    handleMarkNotificationAsRead,
+    isNotificationLoading,
+    notificationIsLast,
   };
 };
