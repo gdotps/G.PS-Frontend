@@ -31,6 +31,17 @@ import {
 } from "../services/postService";
 import { toggleLike as apiToggleLike } from "../services/likeService";
 import {
+  getCurrentSubscription,
+  isPushSupported,
+  sendSubscriptionToBackend,
+  subscribeToPush,
+  unsubscribeFromPush,
+} from "../services/pushService";
+import {
+  getMyNotifications,
+  markNotificationAsRead,
+} from "../services/notificationService";
+import {
   ChatIncomingMessage,
   ChatMessageReadEvent,
   deleteChatMessage,
@@ -67,8 +78,12 @@ export const useAppLogic = () => {
   const [selectedChatId, setSelectedChatId] = useState<number | null>(null);
   const [posts, setPosts] = useState<Post[]>(MOCK_POSTS);
   const [chats, setChats] = useState<ChatRoom[]>([]);
-  const [notifications, setNotifications] =
-    useState<Notification[]>(MOCK_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [inAppNotification, setInAppNotification] = useState<{
+    title: string;
+    body: string;
+    data?: Record<string, any>;
+  } | null>(null);
   const [bookmarkedIds, setBookmarkedIds] = useState<number[]>([]);
   const [selectedChatParticipants, setSelectedChatParticipants] = useState<
     User[]
@@ -90,6 +105,15 @@ export const useAppLogic = () => {
   const [likedMeetingsTotalElements, setLikedMeetingsTotalElements] =
     useState<number>(0);
   const [isLikedMeetingsLoading, setIsLikedMeetingsLoading] =
+    useState<boolean>(false);
+  const [isPushSupportedState, setIsPushSupportedState] =
+    useState<boolean>(false);
+  const [pushSubscription, setPushSubscription] =
+    useState<PushSubscription | null>(null);
+  const [isPushLoading, setIsPushLoading] = useState<boolean>(false);
+  const [notificationPage, setNotificationPage] = useState<number>(0);
+  const [notificationIsLast, setNotificationIsLast] = useState<boolean>(true);
+  const [isNotificationLoading, setIsNotificationLoading] =
     useState<boolean>(false);
 
   const mapIncomingMessageToState = (item: ChatIncomingMessage): Message => ({
@@ -586,6 +610,92 @@ export const useAppLogic = () => {
     fetchLikedMeetings,
   ]);
 
+  const fetchNotifications = useCallback(async () => {
+    console.log("🔄 Starting to fetch notifications...");
+    setIsNotificationLoading(true);
+    try {
+      console.log("📡 Calling getMyNotifications API...");
+      const data = await getMyNotifications();
+      console.log("📢 Notifications fetched successfully:", data);
+      console.log("📊 Number of notifications received:", data.length);
+      //if (page === 0) {
+      setNotifications(
+        data.map((notification) => ({
+          id: notification.notificationId,
+          eventType: notification.eventType,
+          resourceType: notification.resourceType,
+          resourceId: notification.resourceId,
+          actorUserId: notification.actorUserId,
+          actorNickname: notification.actorNickname,
+          postId: notification.postId,
+          commentId: notification.commentId,
+          chatRoomId: notification.chatRoomId,
+          message: notification.message,
+          isRead: notification.isRead,
+          createdAt: new Date(notification.createdAt).getTime(),
+          readAt: notification.readAt
+            ? new Date(notification.readAt).getTime()
+            : undefined,
+        })),
+      );
+      // } else {
+      //   setNotifications((prev) => [
+      //     ...prev,
+      //     ...data.map((notification) => ({
+      //       id: notification.notificationId,
+      //       eventType: notification.eventType,
+      //       resourceType: notification.resourceType,
+      //       resourceId: notification.resourceId,
+      //       actorUserId: notification.actorUserId,
+      //       actorNickname: notification.actorNickname,
+      //       postId: notification.postId,
+      //       commentId: notification.commentId,
+      //       chatRoomId: notification.chatRoomId,
+      //       message: notification.message,
+      //       isRead: notification.isRead,
+      //       createdAt: new Date(notification.createdAt).getTime(),
+      //       readAt: notification.readAt
+      //         ? new Date(notification.readAt).getTime()
+      //         : undefined,
+      //     })),
+      //   ]);
+      // }
+      //setNotifications()
+      // Since backend now returns all notifications at once, always set as last page
+      //setNotificationIsLast(true);
+    } catch (error) {
+      console.error("알림 목록 조회 오류:", error);
+      // API 호출 실패 시 빈 배열로 설정
+      setNotifications([]);
+      alert("알림 목록을 불러오는 데 실패했습니다.");
+    } finally {
+      setIsNotificationLoading(false);
+    }
+  }, []);
+
+  const goToNotifications = () => {
+    setCurrentView(ViewState.NOTIFICATIONS);
+    fetchNotifications();
+  };
+
+  const loadMoreNotifications = useCallback(() => {
+    // Since backend returns all notifications at once, no more loading needed
+    console.log("ℹ️ All notifications already loaded");
+  }, []);
+
+  const handleMarkNotificationAsRead = async (notificationId: number) => {
+    try {
+      await markNotificationAsRead(notificationId);
+      setNotifications((prev) =>
+        prev.map((notif) =>
+          notif.id === notificationId ? { ...notif, isRead: true } : notif,
+        ),
+      );
+    } catch (error) {
+      console.error("알림 읽음 처리 오류:", error);
+    }
+  };
+
   const loadMoreApplications = useCallback(() => {
     if (!myApplicationsIsLast && !isApplicationsLoading) {
       fetchMyApplications(myApplicationsPage + 1);
@@ -779,6 +889,21 @@ export const useAppLogic = () => {
         content: text,
         parentId: parentId ?? null,
       });
+
+      const recipientUserIds = Array.from(
+        new Set(
+          [
+            selectedPost.authorId !== currentUser.userId
+              ? selectedPost.authorId
+              : null,
+            parentId
+              ? ((selectedPost.comments || []).find(
+                  (comment) => comment.id === parentId,
+                )?.authorId ?? null)
+              : null,
+          ].filter((userId): userId is number => userId !== null),
+        ),
+      );
 
       const newComment: Comment = {
         id: createdComment.commentId,
@@ -983,6 +1108,59 @@ export const useAppLogic = () => {
     };
   }, []);
 
+  // Initialize push notifications
+  useEffect(() => {
+    const initializePush = async () => {
+      const supported = isPushSupported();
+      setIsPushSupportedState(supported);
+      console.log("🔧 Push supported:", supported);
+
+      if (supported) {
+        try {
+          const subscription = await getCurrentSubscription();
+          console.log("🔔 Current push subscription:", subscription);
+          setPushSubscription(subscription);
+        } catch (error) {
+          console.error("Error checking push subscription:", error);
+        }
+      }
+    };
+
+    void initializePush();
+  }, []);
+
+  useEffect(() => {
+    const handleServiceWorkerMessage = (event: MessageEvent) => {
+      const message = event.data;
+      if (!message || message.type !== "NEW_NOTIFICATION") return;
+
+      const payload = message.payload;
+      console.log("📲 In-app push message received:", payload);
+      setInAppNotification({
+        title: payload.title || "새 알림",
+        body: payload.body || payload.message || "새 알림이 도착했습니다.",
+        data: payload,
+      });
+      void fetchNotifications();
+    };
+
+    navigator.serviceWorker?.addEventListener(
+      "message",
+      handleServiceWorkerMessage,
+    );
+
+    return () => {
+      navigator.serviceWorker?.removeEventListener(
+        "message",
+        handleServiceWorkerMessage,
+      );
+    };
+  }, [fetchNotifications]);
+
+  const dismissInAppNotification = useCallback(() => {
+    setInAppNotification(null);
+  }, []);
+
   useEffect(() => {
     if (currentView !== ViewState.HOME) return;
     void loadHomePosts();
@@ -1074,6 +1252,42 @@ export const useAppLogic = () => {
   const handleRejoinCancel = () => {
     setShowRejoinConfirm(false);
     setCurrentView(ViewState.ONBOARDING);
+  };
+
+  const handleSubscribeToPush = async () => {
+    if (!isPushSupportedState) {
+      alert("이 브라우저에서는 푸시 알림을 지원하지 않습니다.");
+      return;
+    }
+
+    setIsPushLoading(true);
+    try {
+      const subscription = await subscribeToPush();
+      if (subscription) {
+        await sendSubscriptionToBackend(subscription);
+        setPushSubscription(subscription);
+        alert("푸시 알림 구독이 완료되었습니다.");
+      }
+    } catch (error) {
+      console.error("푸시 구독 실패:", error);
+      alert("푸시 알림 구독에 실패했습니다. 다시 시도해주세요.");
+    } finally {
+      setIsPushLoading(false);
+    }
+  };
+
+  const handleUnsubscribeFromPush = async () => {
+    setIsPushLoading(true);
+    try {
+      await unsubscribeFromPush();
+      setPushSubscription(null);
+      alert("푸시 알림 구독이 해지되었습니다.");
+    } catch (error) {
+      console.error("푸시 구독 해지 실패:", error);
+      alert("푸시 알림 구독 해지에 실패했습니다.");
+    } finally {
+      setIsPushLoading(false);
+    }
   };
 
   const toggleNotification = async () => {
@@ -1350,5 +1564,19 @@ export const useAppLogic = () => {
     isLikedMeetingsLoading,
     goToBookmarks,
     loadMoreLikedMeetings,
+    // 푸시 알림
+    isPushSupportedState,
+    pushSubscription,
+    isPushLoading,
+    handleSubscribeToPush,
+    handleUnsubscribeFromPush,
+    // 알림
+    goToNotifications,
+    loadMoreNotifications,
+    handleMarkNotificationAsRead,
+    isNotificationLoading,
+    notificationIsLast,
+    inAppNotification,
+    dismissInAppNotification,
   };
 };

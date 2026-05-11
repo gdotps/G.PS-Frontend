@@ -144,11 +144,18 @@ export interface ChatRoom {
 
 export interface Notification {
   id: number;
-  type: "COMMENT" | "JOIN" | "SYSTEM" | "CHAT" | "APPLY";
+  eventType: string;
+  resourceType: string;
+  resourceId: number;
+  actorUserId: number;
+  actorNickname: string;
+  postId?: number;
+  commentId?: number;
+  chatRoomId?: number;
   message: string;
-  timestamp: number;
   isRead: boolean;
-  relatedId?: number;
+  createdAt: number; // timestamp
+  readAt?: number; // timestamp
 }
 
 export interface WithdrawResponse {
